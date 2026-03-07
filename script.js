@@ -286,6 +286,255 @@ This is a fully client-side application. Your content never leaves your browser 
 
   markdownEditor.value = sampleMarkdown;
 
+  // ========================================
+  // DOCUMENT TABS & SESSION MANAGEMENT
+  // ========================================
+
+  const STORAGE_KEY = 'markdownViewerTabs';
+  const ACTIVE_TAB_KEY = 'markdownViewerActiveTab';
+  let tabs = [];
+  let activeTabId = null;
+  let draggedTabId = null;
+  let saveTabStateTimeout = null;
+  let updateTitleTimeout = null;
+
+  function loadTabsFromStorage() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveTabsToStorage(tabsArr) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tabsArr));
+    } catch (e) {
+      console.warn('Failed to save tabs to localStorage:', e);
+    }
+  }
+
+  function loadActiveTabId() {
+    return localStorage.getItem(ACTIVE_TAB_KEY);
+  }
+
+  function saveActiveTabId(id) {
+    localStorage.setItem(ACTIVE_TAB_KEY, id);
+  }
+
+  function deriveTitleFromContent(content) {
+    if (!content) return 'Untitled';
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const h1Match = lines[i].match(/^#\s+(.+)/);
+      if (h1Match) return h1Match[1].trim();
+    }
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed) return trimmed.substring(0, 30);
+    }
+    return 'Untitled';
+  }
+
+  function createTab(content, title, viewMode) {
+    if (content === undefined) content = '';
+    if (title === undefined) title = null;
+    if (viewMode === undefined) viewMode = 'split';
+    return {
+      id: 'tab_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      title: title || deriveTitleFromContent(content) || 'Untitled',
+      content: content,
+      scrollPos: 0,
+      viewMode: viewMode,
+      createdAt: Date.now()
+    };
+  }
+
+  function renderTabBar(tabsArr, currentActiveTabId) {
+    const tabList = document.getElementById('tab-list');
+    if (!tabList) return;
+    tabList.innerHTML = '';
+    tabsArr.forEach(function(tab) {
+      const item = document.createElement('div');
+      item.className = 'tab-item' + (tab.id === currentActiveTabId ? ' active' : '');
+      item.setAttribute('data-tab-id', tab.id);
+      item.setAttribute('role', 'tab');
+      item.setAttribute('aria-selected', tab.id === currentActiveTabId ? 'true' : 'false');
+      item.setAttribute('draggable', 'true');
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'tab-title';
+      titleSpan.textContent = tab.title || 'Untitled';
+      titleSpan.title = tab.title || 'Untitled';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'tab-close-btn';
+      closeBtn.setAttribute('aria-label', 'Close tab');
+      closeBtn.innerHTML = '<i class="bi bi-x"></i>';
+      if (tabsArr.length === 1) {
+        closeBtn.style.visibility = 'hidden';
+      }
+
+      item.appendChild(titleSpan);
+      item.appendChild(closeBtn);
+
+      item.addEventListener('click', function() {
+        switchTab(tab.id);
+      });
+
+      closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeTab(tab.id);
+      });
+
+      item.addEventListener('dragstart', function() {
+        draggedTabId = tab.id;
+        setTimeout(function() { item.classList.add('dragging'); }, 0);
+      });
+
+      item.addEventListener('dragend', function() {
+        item.classList.remove('dragging');
+        draggedTabId = null;
+      });
+
+      item.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        item.classList.add('drag-over');
+      });
+
+      item.addEventListener('dragleave', function() {
+        item.classList.remove('drag-over');
+      });
+
+      item.addEventListener('drop', function(e) {
+        e.preventDefault();
+        item.classList.remove('drag-over');
+        if (!draggedTabId || draggedTabId === tab.id) return;
+        const fromIdx = tabs.findIndex(function(t) { return t.id === draggedTabId; });
+        const toIdx = tabs.findIndex(function(t) { return t.id === tab.id; });
+        if (fromIdx === -1 || toIdx === -1) return;
+        const moved = tabs.splice(fromIdx, 1)[0];
+        tabs.splice(toIdx, 0, moved);
+        saveTabsToStorage(tabs);
+        renderTabBar(tabs, activeTabId);
+      });
+
+      tabList.appendChild(item);
+    });
+
+    // Auto-scroll active tab into view
+    const activeItem = tabList.querySelector('.tab-item.active');
+    if (activeItem) {
+      activeItem.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
+
+  function saveCurrentTabState() {
+    const tab = tabs.find(function(t) { return t.id === activeTabId; });
+    if (!tab) return;
+    tab.content = markdownEditor.value;
+    tab.scrollPos = markdownEditor.scrollTop;
+    tab.viewMode = currentViewMode || 'split';
+    saveTabsToStorage(tabs);
+  }
+
+  function restoreViewMode(mode) {
+    currentViewMode = null;
+    setViewMode(mode || 'split');
+  }
+
+  function updateActiveTabTitle() {
+    const tab = tabs.find(function(t) { return t.id === activeTabId; });
+    if (!tab) return;
+    const newTitle = deriveTitleFromContent(markdownEditor.value) || 'Untitled';
+    if (newTitle === tab.title) return;
+    tab.title = newTitle;
+    saveTabsToStorage(tabs);
+    const tabList = document.getElementById('tab-list');
+    if (tabList) {
+      const item = tabList.querySelector('[data-tab-id="' + activeTabId + '"]');
+      if (item) {
+        const titleSpan = item.querySelector('.tab-title');
+        if (titleSpan) {
+          titleSpan.textContent = newTitle;
+          titleSpan.title = newTitle;
+        }
+      }
+    }
+  }
+
+  function switchTab(tabId) {
+    if (tabId === activeTabId) return;
+    saveCurrentTabState();
+    activeTabId = tabId;
+    saveActiveTabId(activeTabId);
+    const tab = tabs.find(function(t) { return t.id === tabId; });
+    if (!tab) return;
+    markdownEditor.value = tab.content;
+    restoreViewMode(tab.viewMode);
+    renderMarkdown();
+    requestAnimationFrame(function() {
+      markdownEditor.scrollTop = tab.scrollPos || 0;
+    });
+    renderTabBar(tabs, activeTabId);
+  }
+
+  function newTab(content, title) {
+    if (content === undefined) content = '';
+    if (tabs.length >= 20) {
+      alert('Maximum of 20 tabs reached. Please close an existing tab to open a new one.');
+      return;
+    }
+    const tab = createTab(content, title);
+    tabs.push(tab);
+    switchTab(tab.id);
+    markdownEditor.focus();
+  }
+
+  function closeTab(tabId) {
+    if (tabs.length <= 1) return;
+    const idx = tabs.findIndex(function(t) { return t.id === tabId; });
+    if (idx === -1) return;
+    tabs.splice(idx, 1);
+    if (activeTabId === tabId) {
+      const newIdx = Math.max(0, idx - 1);
+      activeTabId = tabs[newIdx].id;
+      saveActiveTabId(activeTabId);
+      const newActiveTab = tabs[newIdx];
+      markdownEditor.value = newActiveTab.content;
+      restoreViewMode(newActiveTab.viewMode);
+      renderMarkdown();
+      requestAnimationFrame(function() {
+        markdownEditor.scrollTop = newActiveTab.scrollPos || 0;
+      });
+    }
+    saveTabsToStorage(tabs);
+    renderTabBar(tabs, activeTabId);
+  }
+
+  function initTabs() {
+    tabs = loadTabsFromStorage();
+    activeTabId = loadActiveTabId();
+    if (tabs.length === 0) {
+      const tab = createTab(sampleMarkdown);
+      tabs.push(tab);
+      activeTabId = tab.id;
+      saveTabsToStorage(tabs);
+      saveActiveTabId(activeTabId);
+    } else if (!tabs.find(function(t) { return t.id === activeTabId; })) {
+      activeTabId = tabs[0].id;
+      saveActiveTabId(activeTabId);
+    }
+    const activeTab = tabs.find(function(t) { return t.id === activeTabId; });
+    markdownEditor.value = activeTab.content;
+    restoreViewMode(activeTab.viewMode);
+    renderMarkdown();
+    requestAnimationFrame(function() {
+      markdownEditor.scrollTop = activeTab.scrollPos || 0;
+    });
+    renderTabBar(tabs, activeTabId);
+  }
+
   function renderMarkdown() {
     try {
       const markdown = markdownEditor.value;
@@ -338,8 +587,7 @@ This is a fully client-side application. Your content never leaves your browser 
   function importMarkdownFile(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      markdownEditor.value = e.target.result;
-      renderMarkdown();
+      newTab(e.target.result, file.name.replace(/\.md$/i, ''));
       dropzone.style.display = "none";
     };
     reader.readAsText(file);
@@ -683,11 +931,8 @@ This is a fully client-side application. Your content never leaves your browser 
     mobileThemeToggle.innerHTML = themeToggle.innerHTML + " Toggle Dark Mode";
   });
   
-  renderMarkdown();
+  initTabs();
   updateMobileStats();
-
-  // Initialize view mode - Story 1.1
-  contentContainer.classList.add('view-split');
 
   // Initialize resizer - Story 1.3
   initResizer();
@@ -697,6 +942,7 @@ This is a fully client-side application. Your content never leaves your browser 
     btn.addEventListener('click', function() {
       const mode = this.getAttribute('data-mode');
       setViewMode(mode);
+      saveCurrentTabState();
     });
   });
 
@@ -705,11 +951,18 @@ This is a fully client-side application. Your content never leaves your browser 
     btn.addEventListener('click', function() {
       const mode = this.getAttribute('data-mode');
       setViewMode(mode);
+      saveCurrentTabState();
       closeMobileMenu();
     });
   });
 
-  markdownEditor.addEventListener("input", debouncedRender);
+  markdownEditor.addEventListener("input", function() {
+    debouncedRender();
+    clearTimeout(saveTabStateTimeout);
+    saveTabStateTimeout = setTimeout(saveCurrentTabState, 500);
+    clearTimeout(updateTitleTimeout);
+    updateTitleTimeout = setTimeout(updateActiveTabTitle, 800);
+  });
   
   // Tab key handler to insert indentation instead of moving focus
   markdownEditor.addEventListener("keydown", function(e) {
@@ -1606,6 +1859,8 @@ This is a fully client-side application. Your content never leaves your browser 
       const decoded = decodeMarkdownFromShare(encoded);
       markdownEditor.value = decoded;
       renderMarkdown();
+      saveCurrentTabState();
+      updateActiveTabTitle();
     } catch (e) {
       console.error("Failed to load shared content:", e);
       alert("The shared URL could not be decoded. It may be corrupted or incomplete.");
@@ -1691,10 +1946,26 @@ This is a fully client-side application. Your content never leaves your browser 
         toggleSyncScrolling();
       }
     }
+    // New tab
+    if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+      e.preventDefault();
+      newTab();
+    }
+    // Close tab
+    if ((e.ctrlKey || e.metaKey) && e.key === "w") {
+      if (tabs.length > 1) {
+        e.preventDefault();
+        closeTab(activeTabId);
+      }
+    }
     // Close Mermaid zoom modal with Escape
     if (e.key === "Escape") {
       closeMermaidModal();
     }
+  });
+
+  document.getElementById('tab-new-btn').addEventListener('click', function() {
+    newTab();
   });
 
   // ========================================
