@@ -1228,7 +1228,7 @@ a:focus {
   font-size: 13px;
   color: var(--text-color);
   white-space: nowrap;
-  overflow: hidden;
+  /* overflow: hidden; <-- REMOVE THIS */
   position: relative;
   transition: background-color 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
@@ -1266,8 +1266,7 @@ a:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  font-size: 12px;
-  line-height: 1;
+  min-width: 0;
 }
 
 .tab-close-btn {
@@ -1396,7 +1395,7 @@ a:focus {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1000;
+  z-index: 9999; /* ← Raise this from 1000 to 9999 */
   overflow: hidden;
   flex-direction: column;
 }
