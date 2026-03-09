@@ -1390,15 +1390,13 @@ a:focus {
 
 .tab-menu-dropdown {
   display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  position: fixed;
   min-width: 130px;
   background-color: var(--header-bg);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 9999; /* ← Raise this from 1000 to 9999 */
+  z-index: 99999;
   overflow: hidden;
   flex-direction: column;
 }

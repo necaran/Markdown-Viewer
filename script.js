@@ -392,6 +392,14 @@ This is a fully client-side application. Your content never leaves your browser 
           if (btn !== menuBtn) btn.classList.remove('open');
         });
         menuBtn.classList.toggle('open');
+        // Position the dropdown relative to the viewport so it escapes the
+        // overflow scroll container on .tab-list
+        if (menuBtn.classList.contains('open')) {
+          var rect = menuBtn.getBoundingClientRect();
+          dropdown.style.top = (rect.bottom + 4) + 'px';
+          dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+          dropdown.style.left = 'auto';
+        }
       });
 
       dropdown.querySelectorAll('.tab-menu-item').forEach(function(actionBtn) {
