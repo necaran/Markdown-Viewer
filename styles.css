@@ -777,25 +777,21 @@ a:focus {
   min-width: 0;
 }
 
-.mobile-tab-delete-btn {
-  background: none;
-  border: none;
-  color: var(--text-color);
-  opacity: 0.5;
-  cursor: pointer;
-  padding: 0;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  border-radius: 3px;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
+.mobile-tab-item .tab-menu-btn {
+  opacity: 0.6;
 }
 
-.mobile-tab-delete-btn:hover {
-  opacity: 1;
-  background-color: rgba(220, 53, 69, 0.15);
-  color: #dc3545;
+.mobile-tab-item:hover .tab-menu-btn,
+.mobile-tab-item.active .tab-menu-btn {
+  opacity: 0.8;
+}
+
+#mobile-tab-reset-btn {
+  margin-left: 0;
+  height: auto;
+  padding: 0.45rem 0.75rem;
+  justify-content: center;
+  font-size: 0.9rem;
 }
 
 /* hide desktop-only stats and toolbar on mobile */
