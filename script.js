@@ -13,8 +13,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const markdownEditor = document.getElementById("markdown-editor");
   const markdownPreview = document.getElementById("markdown-preview");
   const themeToggle = document.getElementById("theme-toggle");
-  const importButton = document.getElementById("import-button");
-  const importGithubButton = document.getElementById("import-github-button");
+  const importFromFileButton = document.getElementById("import-from-file");
+  const importFromGithubButton = document.getElementById("import-from-github");
   const fileInput = document.getElementById("file-input");
   const exportMd = document.getElementById("export-md");
   const exportHtml = document.getElementById("export-html");
@@ -61,6 +61,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const mobileThemeToggle   = document.getElementById("mobile-theme-toggle");
   const shareButton         = document.getElementById("share-button");
   const mobileShareButton   = document.getElementById("mobile-share-button");
+  const githubImportModal = document.getElementById("github-import-modal");
+  const githubImportTitle = document.getElementById("github-import-title");
+  const githubImportUrlInput = document.getElementById("github-import-url");
+  const githubImportFileSelect = document.getElementById("github-import-file-select");
+  const githubImportError = document.getElementById("github-import-error");
+  const githubImportCancelBtn = document.getElementById("github-import-cancel");
+  const githubImportSubmitBtn = document.getElementById("github-import-submit");
 
   // Check dark mode preference first for proper initialization
   const prefersDarkMode =
@@ -918,27 +925,105 @@ This is a fully client-side application. Your content never leaves your browser 
   }
 
   function setGitHubImportLoading(isLoading) {
-    [importGithubButton, mobileImportGithubBtn].forEach((btn) => {
-      if (!btn) return;
-      if (!btn.dataset.originalText) {
-        btn.dataset.originalText = btn.innerHTML;
-      }
-      btn.disabled = isLoading;
-      btn.innerHTML = isLoading ? '<i class="bi bi-hourglass-split"></i> Importing...' : btn.dataset.originalText;
-    });
+    if (!githubImportSubmitBtn) return;
+    if (isLoading) {
+      githubImportSubmitBtn.dataset.loadingText = githubImportSubmitBtn.textContent;
+      githubImportSubmitBtn.textContent = "Importing...";
+    } else if (githubImportSubmitBtn.dataset.loadingText) {
+      githubImportSubmitBtn.textContent = githubImportSubmitBtn.dataset.loadingText;
+      delete githubImportSubmitBtn.dataset.loadingText;
+    }
   }
 
-  async function importMarkdownFromGitHub() {
-    const urlInput = prompt("Enter a GitHub repository, folder, or Markdown file URL:");
-    if (!urlInput) return;
+  function setGitHubImportError(message) {
+    if (!githubImportError) return;
+    if (!message) {
+      githubImportError.textContent = "";
+      githubImportError.style.display = "none";
+      return;
+    }
+    githubImportError.textContent = message;
+    githubImportError.style.display = "block";
+  }
 
-    const parsed = parseGitHubImportUrl(urlInput);
-    if (!parsed || !parsed.owner || !parsed.repo) {
-      alert("Please enter a valid GitHub URL.");
+  function resetGitHubImportModal() {
+    if (!githubImportUrlInput || !githubImportFileSelect || !githubImportSubmitBtn) return;
+    if (githubImportTitle) {
+      githubImportTitle.textContent = "Import Markdown from GitHub";
+    }
+    githubImportUrlInput.value = "";
+    githubImportUrlInput.style.display = "block";
+    githubImportUrlInput.disabled = false;
+    githubImportFileSelect.innerHTML = "";
+    githubImportFileSelect.style.display = "none";
+    githubImportFileSelect.disabled = false;
+    githubImportSubmitBtn.dataset.step = "url";
+    delete githubImportSubmitBtn.dataset.owner;
+    delete githubImportSubmitBtn.dataset.repo;
+    delete githubImportSubmitBtn.dataset.ref;
+    githubImportSubmitBtn.textContent = "Import";
+    setGitHubImportError("");
+  }
+
+  function openGitHubImportModal() {
+    if (!githubImportModal || !githubImportUrlInput || !githubImportSubmitBtn) return;
+    resetGitHubImportModal();
+    githubImportModal.style.display = "flex";
+    githubImportUrlInput.focus();
+  }
+
+  function closeGitHubImportModal() {
+    if (!githubImportModal) return;
+    githubImportModal.style.display = "none";
+    resetGitHubImportModal();
+  }
+
+  async function handleGitHubImportSubmit() {
+    if (!githubImportSubmitBtn || !githubImportUrlInput || !githubImportFileSelect) return;
+    const step = githubImportSubmitBtn.dataset.step || "url";
+    if (step === "select") {
+      const selectedPath = githubImportFileSelect.value;
+      const owner = githubImportSubmitBtn.dataset.owner;
+      const repo = githubImportSubmitBtn.dataset.repo;
+      const ref = githubImportSubmitBtn.dataset.ref;
+      if (!owner || !repo || !ref || !selectedPath) {
+        setGitHubImportError("Please select a file to import.");
+        return;
+      }
+      setGitHubImportLoading(true);
+      githubImportSubmitBtn.disabled = true;
+      githubImportCancelBtn.disabled = true;
+      try {
+        const markdown = await fetchTextContent(buildRawGitHubUrl(owner, repo, ref, selectedPath));
+        newTab(markdown, getFileName(selectedPath).replace(/\.(md|markdown)$/i, ""));
+        closeGitHubImportModal();
+      } catch (error) {
+        console.error("GitHub import failed:", error);
+        setGitHubImportError("GitHub import failed: " + error.message);
+      } finally {
+        githubImportSubmitBtn.disabled = false;
+        githubImportCancelBtn.disabled = false;
+        setGitHubImportLoading(false);
+      }
       return;
     }
 
+    const urlInput = githubImportUrlInput.value.trim();
+    if (!urlInput) {
+      setGitHubImportError("Please enter a GitHub URL.");
+      return;
+    }
+
+    const parsed = parseGitHubImportUrl(urlInput);
+    if (!parsed || !parsed.owner || !parsed.repo) {
+      setGitHubImportError("Please enter a valid GitHub URL.");
+      return;
+    }
+
+    setGitHubImportError("");
     setGitHubImportLoading(true);
+    githubImportSubmitBtn.disabled = true;
+    githubImportCancelBtn.disabled = true;
     try {
       if (parsed.type === "file") {
         if (!isMarkdownPath(parsed.filePath)) {
@@ -946,6 +1031,7 @@ This is a fully client-side application. Your content never leaves your browser 
         }
         const markdown = await fetchTextContent(buildRawGitHubUrl(parsed.owner, parsed.repo, parsed.ref, parsed.filePath));
         newTab(markdown, getFileName(parsed.filePath).replace(/\.(md|markdown)$/i, ""));
+        closeGitHubImportModal();
         return;
       }
 
@@ -953,36 +1039,47 @@ This is a fully client-side application. Your content never leaves your browser 
       const files = await listMarkdownFiles(parsed.owner, parsed.repo, ref, parsed.basePath || "");
 
       if (!files.length) {
-        alert("No Markdown files were found at that GitHub location.");
+        setGitHubImportError("No Markdown files were found at that GitHub location.");
         return;
       }
 
-      let targetPath = files[0];
-      if (files.length > 1) {
-        const maxShown = Math.min(files.length, MAX_GITHUB_FILES_SHOWN);
-        const choices = files
-          .slice(0, maxShown)
-          .map((file, index) => `${index + 1}. ${file}`)
-          .join("\n");
-        const choice = prompt(
-          `Found ${files.length} Markdown files.\nEnter a number to import (showing first ${maxShown}):\n\n${choices}${files.length > maxShown ? "\n..." : ""}`,
-          "1"
-        );
-
-        if (choice === null) return;
-        const selectedIndex = Number(choice) - 1;
-        if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= maxShown) {
-          throw new Error(`Please enter a number between 1 and ${maxShown} (from the displayed list).`);
-        }
-        targetPath = files[selectedIndex];
+      const shownFiles = files.slice(0, MAX_GITHUB_FILES_SHOWN);
+      if (shownFiles.length === 1) {
+        const targetPath = shownFiles[0];
+        const markdown = await fetchTextContent(buildRawGitHubUrl(parsed.owner, parsed.repo, ref, targetPath));
+        newTab(markdown, getFileName(targetPath).replace(/\.(md|markdown)$/i, ""));
+        closeGitHubImportModal();
+        return;
       }
 
-      const markdown = await fetchTextContent(buildRawGitHubUrl(parsed.owner, parsed.repo, ref, targetPath));
-      newTab(markdown, getFileName(targetPath).replace(/\.(md|markdown)$/i, ""));
+      githubImportUrlInput.style.display = "none";
+      githubImportFileSelect.style.display = "block";
+      githubImportFileSelect.innerHTML = "";
+      shownFiles.forEach((filePath) => {
+        const option = document.createElement("option");
+        option.value = filePath;
+        option.textContent = filePath;
+        githubImportFileSelect.appendChild(option);
+      });
+      if (files.length > MAX_GITHUB_FILES_SHOWN) {
+        setGitHubImportError(`Showing first ${MAX_GITHUB_FILES_SHOWN} of ${files.length} Markdown files.`);
+      } else {
+        setGitHubImportError("");
+      }
+      if (githubImportTitle) {
+        githubImportTitle.textContent = "Select a Markdown file to import";
+      }
+      githubImportSubmitBtn.dataset.step = "select";
+      githubImportSubmitBtn.dataset.owner = parsed.owner;
+      githubImportSubmitBtn.dataset.repo = parsed.repo;
+      githubImportSubmitBtn.dataset.ref = ref;
+      githubImportSubmitBtn.textContent = "Import Selected";
     } catch (error) {
       console.error("GitHub import failed:", error);
-      alert("GitHub import failed: " + error.message);
+      setGitHubImportError("GitHub import failed: " + error.message);
     } finally {
+      githubImportSubmitBtn.disabled = false;
+      githubImportCancelBtn.disabled = false;
       setGitHubImportLoading(false);
     }
   }
@@ -1317,7 +1414,8 @@ This is a fully client-side application. Your content never leaves your browser 
   });
   mobileImportBtn.addEventListener("click", () => fileInput.click());
   mobileImportGithubBtn.addEventListener("click", () => {
-    importMarkdownFromGitHub().finally(closeMobileMenu);
+    closeMobileMenu();
+    openGitHubImportModal();
   });
   mobileExportMd.addEventListener("click", () => exportMd.click());
   mobileExportHtml.addEventListener("click", () => exportHtml.click());
@@ -1417,13 +1515,46 @@ This is a fully client-side application. Your content never leaves your browser 
     renderMarkdown();
   });
 
-  importButton.addEventListener("click", function () {
-    fileInput.click();
-  });
+  if (importFromFileButton) {
+    importFromFileButton.addEventListener("click", function (e) {
+      e.preventDefault();
+      fileInput.click();
+    });
+  }
 
-  importGithubButton.addEventListener("click", function () {
-    importMarkdownFromGitHub();
-  });
+  if (importFromGithubButton) {
+    importFromGithubButton.addEventListener("click", function (e) {
+      e.preventDefault();
+      openGitHubImportModal();
+    });
+  }
+
+  if (githubImportSubmitBtn) {
+    githubImportSubmitBtn.addEventListener("click", handleGitHubImportSubmit);
+  }
+  if (githubImportCancelBtn) {
+    githubImportCancelBtn.addEventListener("click", closeGitHubImportModal);
+  }
+  if (githubImportUrlInput) {
+    githubImportUrlInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleGitHubImportSubmit();
+      } else if (e.key === "Escape") {
+        closeGitHubImportModal();
+      }
+    });
+  }
+  if (githubImportFileSelect) {
+    githubImportFileSelect.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleGitHubImportSubmit();
+      } else if (e.key === "Escape") {
+        closeGitHubImportModal();
+      }
+    });
+  }
 
   fileInput.addEventListener("change", function (e) {
     const file = e.target.files[0];

@@ -1643,3 +1643,9 @@ a:focus {
   border-color: var(--accent-color);
 }
 
+.github-import-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-danger-fg, #d73a49);
+  text-align: left;
+}

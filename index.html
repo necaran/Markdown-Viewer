@@ -99,12 +99,15 @@
                     <button id="toggle-sync" class="tool-button sync-enabled border-primary" title="Toggle Sync Scrolling">
                         <i class="bi bi-link"></i> Sync Off
                     </button>
-                    <button id="import-button" class="tool-button" title="Import Markdown">
-                        <i class="bi bi-upload"></i> Import
-                    </button>
-                    <button id="import-github-button" class="tool-button" title="Import Markdown from GitHub URL">
-                        <i class="bi bi-github"></i> GitHub Import
-                    </button>
+                    <div class="dropdown">
+                        <button class="tool-button dropdown-toggle" type="button" id="importDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Import Markdown">
+                            <i class="bi bi-upload"></i> Import
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="importDropdown">
+                            <li><a class="dropdown-item" href="#" id="import-from-file">From files</a></li>
+                            <li><a class="dropdown-item" href="#" id="import-from-github">From GitHub</a></li>
+                        </ul>
+                    </div>
                     <input type="file" id="file-input" class="file-input" accept=".md,.markdown,text/markdown">
                     
                     <div class="dropdown">
@@ -194,11 +197,11 @@
                                 <i class="bi bi-link"></i> Sync Off
                             </button>
                             
-                            <button id="mobile-import-button" class="mobile-menu-item" title="Import Markdown">
-                                <i class="bi bi-upload me-2"></i> Import Markdown
+                            <button id="mobile-import-button" class="mobile-menu-item" title="Import from files">
+                                <i class="bi bi-upload me-2"></i> Import from files
                             </button>
                             
-                            <button id="mobile-import-github-button" class="mobile-menu-item" title="Import Markdown from GitHub URL">
+                            <button id="mobile-import-github-button" class="mobile-menu-item" title="Import from GitHub">
                                 <i class="bi bi-github me-2"></i> Import from GitHub
                             </button>
                             
@@ -260,6 +263,20 @@
             <div class="reset-modal-actions">
               <button class="reset-modal-btn reset-modal-cancel" id="rename-modal-cancel">Cancel</button>
               <button class="reset-modal-btn reset-modal-confirm" id="rename-modal-confirm">Rename</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- GitHub Import Modal -->
+        <div id="github-import-modal" class="reset-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="github-import-title" style="display:none;">
+          <div class="reset-modal-box">
+            <p id="github-import-title" class="reset-modal-message">Import Markdown from GitHub</p>
+            <input type="url" id="github-import-url" class="rename-modal-input" placeholder="https://github.com/owner/repo/blob/main/README.md" />
+            <select id="github-import-file-select" class="rename-modal-input" style="display:none;"></select>
+            <p id="github-import-error" class="github-import-error" style="display:none;"></p>
+            <div class="reset-modal-actions">
+              <button class="reset-modal-btn reset-modal-cancel" id="github-import-cancel">Cancel</button>
+              <button class="reset-modal-btn" id="github-import-submit">Import</button>
             </div>
           </div>
         </div>
