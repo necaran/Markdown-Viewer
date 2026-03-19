@@ -32,6 +32,7 @@
     <!-- Updated libraries to latest versions -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.3.0/github-markdown.min.css">
+    <link rel="stylesheet" id="highlight-theme" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-toolkit@9.0.1/extras/css/joypixels.min.css">
     <link rel="stylesheet" href="/styles.css">
@@ -53,7 +54,6 @@
     
  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j" crossorigin="anonymous"></script>
 </head>
 <body>
     <div class="app-container">
@@ -102,15 +102,9 @@
                     <button id="toggle-sync" class="tool-button sync-enabled border-primary" title="Toggle Sync Scrolling">
                         <i class="bi bi-link"></i> Sync Off
                     </button>
-                    <div class="dropdown">
-                        <button class="tool-button dropdown-toggle" type="button" id="importDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Import Markdown">
-                            <i class="bi bi-upload"></i> Import
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="importDropdown">
-                            <li><a class="dropdown-item" href="#" id="import-from-file">From files</a></li>
-                            <li><a class="dropdown-item" href="#" id="import-from-github">From GitHub</a></li>
-                        </ul>
-                    </div>
+                    <button id="import-button" class="tool-button" title="Import Markdown">
+                        <i class="bi bi-upload"></i> Import
+                    </button>
                     <input type="file" id="file-input" class="file-input" accept=".md,.markdown,text/markdown">
                     
                     <div class="dropdown">
@@ -126,10 +120,6 @@
                     
                     <button id="copy-markdown-button" class="tool-button" title="Copy Markdown">
                         <i class="bi bi-clipboard"></i> Copy
-                    </button>
-                    
-                    <button id="share-button" class="tool-button" title="Share via URL">
-                        <i class="bi bi-share"></i> Share
                     </button>
                     
                     <button id="theme-toggle" class="tool-button" title="Toggle Dark Mode">
@@ -148,22 +138,6 @@
                             <h5>Menu</h5>
                             <button id="close-mobile-menu" class="tool-button">
                                 <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-
-                        <!-- Mobile Document Tabs Section -->
-                        <div class="mobile-tabs-section mb-3">
-                            <div class="mobile-tabs-header">
-                                <span class="mobile-tabs-label"><i class="bi bi-files me-1"></i> Documents</span>
-                                <button id="mobile-new-tab-btn" class="mobile-new-tab-btn" title="New document" aria-label="New document">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
-                            <div id="mobile-tab-list" class="mobile-tab-list" role="tablist" aria-label="Document tabs">
-                                <!-- Dynamically populated by JavaScript -->
-                            </div>
-                            <button id="mobile-tab-reset-btn" class="tab-reset-btn mt-2 w-100" title="Reset all files" aria-label="Reset all files">
-                                <i class="bi bi-arrow-counterclockwise"></i> Reset all files
                             </button>
                         </div>
 
@@ -200,12 +174,8 @@
                                 <i class="bi bi-link"></i> Sync Off
                             </button>
                             
-                            <button id="mobile-import-button" class="mobile-menu-item" title="Import from files">
-                                <i class="bi bi-upload me-2"></i> Import from files
-                            </button>
-                            
-                            <button id="mobile-import-github-button" class="mobile-menu-item" title="Import from GitHub">
-                                <i class="bi bi-github me-2"></i> Import from GitHub
+                            <button id="mobile-import-button" class="mobile-menu-item" title="Import Markdown">
+                                <i class="bi bi-upload me-2"></i> Import Markdown
                             </button>
                             
                             <button id="mobile-export-md" class="mobile-menu-item" title="Export as Markdown">
@@ -224,10 +194,6 @@
                                 <i class="bi bi-clipboard me-2"></i> Copy
                             </button>
                             
-                            <button id="mobile-share-button" class="mobile-menu-item" title="Share via URL">
-                                <i class="bi bi-share me-2"></i> Share
-                            </button>
-                            
                             <button id="mobile-theme-toggle" class="mobile-menu-item" title="Toggle Dark Mode">
                                 <i class="bi bi-moon me-2"></i> Dark Mode
                             </button>
@@ -238,51 +204,6 @@
                 </div>
             </div>
         </header>
-
-        <!-- Tab Bar -->
-        <div class="tab-bar" id="tab-bar" role="tablist" aria-label="Document tabs">
-          <div class="tab-list" id="tab-list"></div>
-          <button class="tab-reset-btn" id="tab-reset-btn" title="Reset all files" aria-label="Reset all files">
-            <i class="bi bi-arrow-counterclockwise"></i> Reset
-          </button>
-        </div>
-
-        <!-- Reset Confirmation Modal -->
-        <div id="reset-confirm-modal" class="reset-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title" style="display:none;">
-          <div class="reset-modal-box">
-            <p id="reset-modal-title" class="reset-modal-message">Are you sure you want to delete all files?</p>
-            <div class="reset-modal-actions">
-              <button class="reset-modal-btn reset-modal-cancel" id="reset-modal-cancel">Cancel</button>
-              <button class="reset-modal-btn reset-modal-confirm" id="reset-modal-confirm">Delete All</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rename Modal -->
-        <div id="rename-modal" class="reset-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rename-modal-title" style="display:none;">
-          <div class="reset-modal-box">
-            <p id="rename-modal-title" class="reset-modal-message">Rename file</p>
-            <input type="text" id="rename-modal-input" class="rename-modal-input" placeholder="File name" />
-            <div class="reset-modal-actions">
-              <button class="reset-modal-btn reset-modal-cancel" id="rename-modal-cancel">Cancel</button>
-              <button class="reset-modal-btn reset-modal-confirm" id="rename-modal-confirm">Rename</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- GitHub Import Modal -->
-        <div id="github-import-modal" class="reset-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="github-import-title" style="display:none;">
-          <div class="reset-modal-box">
-            <p id="github-import-title" class="reset-modal-message">Import Markdown from GitHub</p>
-            <input type="url" id="github-import-url" class="rename-modal-input" placeholder="https://github.com/owner/repo/blob/main/README.md" />
-            <select id="github-import-file-select" class="rename-modal-input" style="display:none;"></select>
-            <p id="github-import-error" class="github-import-error" style="display:none;"></p>
-            <div class="reset-modal-actions">
-              <button class="reset-modal-btn reset-modal-cancel" id="github-import-cancel">Cancel</button>
-              <button class="reset-modal-btn" id="github-import-submit">Import</button>
-            </div>
-          </div>
-        </div>
 
         <div id="dropzone" class="dropzone container-fluid mt-2">
             <button id="close-dropzone" class="close-btn" title="Close dropzone">
@@ -301,39 +222,6 @@
             </div>
             <div class="preview-pane">
                 <div id="markdown-preview" class="markdown-body"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mermaid Zoom Modal -->
-    <div id="mermaid-zoom-modal" role="dialog" aria-modal="true" aria-label="Diagram zoom view">
-        <div class="mermaid-modal-content">
-            <div class="mermaid-modal-header">
-                <span>Diagram</span>
-                <button class="mermaid-modal-close" id="mermaid-modal-close" title="Close" aria-label="Close diagram modal">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            <div class="mermaid-modal-diagram" id="mermaid-modal-diagram"></div>
-            <div class="mermaid-modal-controls">
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-zoom-in" title="Zoom in">
-                    <i class="bi bi-zoom-in"></i> Zoom In
-                </button>
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-zoom-out" title="Zoom out">
-                    <i class="bi bi-zoom-out"></i> Zoom Out
-                </button>
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-zoom-reset" title="Reset zoom">
-                    <i class="bi bi-arrows-angle-contract"></i> Reset
-                </button>
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-copy" title="Copy image">
-                    <i class="bi bi-clipboard-image"></i> Copy
-                </button>
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-download-png" title="Download PNG">
-                    <i class="bi bi-file-image"></i> PNG
-                </button>
-                <button class="mermaid-toolbar-btn" id="mermaid-modal-download-svg" title="Download SVG">
-                    <i class="bi bi-filetype-svg"></i> SVG
-                </button>
             </div>
         </div>
     </div>
