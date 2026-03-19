@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const markdownPreview = document.getElementById("markdown-preview");
   const themeToggle = document.getElementById("theme-toggle");
   const importButton = document.getElementById("import-button");
-  const importGithubButton = document.getElementById("import-github-button");
   const fileInput = document.getElementById("file-input");
   const exportMd = document.getElementById("export-md");
   const exportHtml = document.getElementById("export-html");
@@ -53,14 +52,11 @@ document.addEventListener("DOMContentLoaded", function () {
   const mobileCharCount     = document.getElementById("mobile-char-count");
   const mobileToggleSync    = document.getElementById("mobile-toggle-sync");
   const mobileImportBtn     = document.getElementById("mobile-import-button");
-  const mobileImportGithubBtn = document.getElementById("mobile-import-github-button");
   const mobileExportMd      = document.getElementById("mobile-export-md");
   const mobileExportHtml    = document.getElementById("mobile-export-html");
   const mobileExportPdf     = document.getElementById("mobile-export-pdf");
   const mobileCopyMarkdown  = document.getElementById("mobile-copy-markdown");
   const mobileThemeToggle   = document.getElementById("mobile-theme-toggle");
-  const shareButton         = document.getElementById("share-button");
-  const mobileShareButton   = document.getElementById("mobile-share-button");
 
   // Check dark mode preference first for proper initialization
   const prefersDarkMode =
@@ -123,6 +119,11 @@ document.addEventListener("DOMContentLoaded", function () {
   marked.setOptions({
     ...markedOptions,
     renderer: renderer,
+    highlight: function (code, language) {
+      if (language === 'mermaid') return code;
+      const validLanguage = hljs.getLanguage(language) ? language : "plaintext";
+      return hljs.highlight(code, { language: validLanguage }).value;
+    },
   });
 
   const sampleMarkdown = `# Welcome to Markdown Viewer
@@ -142,9 +143,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const sanitizedHtml = DOMPurify.sanitize(html);
     markdownPreview.innerHTML = sanitizedHtml;
     
-    // Syntax highlighting is handled automatically
-    // during the parsing phase by the marked renderer.
-    // Themes are applied instantly via CSS variables.
+    // Apply syntax highlighting to code blocks
+    markdownPreview.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightElement(block);
+    });
   }
 \`\`\`
 
@@ -273,7 +275,7 @@ Create bullet points:
 Add a [link](https://github.com/ThisIs-Developer/Markdown-Viewer) to important resources.
 
 Embed an image:
-![Markdown Logo](https://markdownviewer.pages.dev/assets/icon.jpg)
+![Markdown Logo](https://example.com/logo.png)
 
 ### **Blockquotes**
 
@@ -288,474 +290,6 @@ This is a fully client-side application. Your content never leaves your browser 
 
   markdownEditor.value = sampleMarkdown;
 
-  // ========================================
-  // DOCUMENT TABS & SESSION MANAGEMENT
-  // ========================================
-
-  const STORAGE_KEY = 'markdownViewerTabs';
-  const ACTIVE_TAB_KEY = 'markdownViewerActiveTab';
-  const UNTITLED_COUNTER_KEY = 'markdownViewerUntitledCounter';
-  let tabs = [];
-  let activeTabId = null;
-  let draggedTabId = null;
-  let saveTabStateTimeout = null;
-  let untitledCounter = 0;
-
-  function loadTabsFromStorage() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveTabsToStorage(tabsArr) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tabsArr));
-    } catch (e) {
-      console.warn('Failed to save tabs to localStorage:', e);
-    }
-  }
-
-  function loadActiveTabId() {
-    return localStorage.getItem(ACTIVE_TAB_KEY);
-  }
-
-  function saveActiveTabId(id) {
-    localStorage.setItem(ACTIVE_TAB_KEY, id);
-  }
-
-  function loadUntitledCounter() {
-    return parseInt(localStorage.getItem(UNTITLED_COUNTER_KEY) || '0', 10);
-  }
-
-  function saveUntitledCounter(val) {
-    localStorage.setItem(UNTITLED_COUNTER_KEY, String(val));
-  }
-
-  function nextUntitledTitle() {
-    untitledCounter += 1;
-    saveUntitledCounter(untitledCounter);
-    return 'Untitled ' + untitledCounter;
-  }
-
-  function createTab(content, title, viewMode) {
-    if (content === undefined) content = '';
-    if (title === undefined) title = null;
-    if (viewMode === undefined) viewMode = 'split';
-    return {
-      id: 'tab_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
-      title: title || 'Untitled',
-      content: content,
-      scrollPos: 0,
-      viewMode: viewMode,
-      createdAt: Date.now()
-    };
-  }
-
-  function renderTabBar(tabsArr, currentActiveTabId) {
-    const tabList = document.getElementById('tab-list');
-    if (!tabList) return;
-    tabList.innerHTML = '';
-    tabsArr.forEach(function(tab) {
-      const item = document.createElement('div');
-      item.className = 'tab-item' + (tab.id === currentActiveTabId ? ' active' : '');
-      item.setAttribute('data-tab-id', tab.id);
-      item.setAttribute('role', 'tab');
-      item.setAttribute('aria-selected', tab.id === currentActiveTabId ? 'true' : 'false');
-      item.setAttribute('draggable', 'true');
-
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'tab-title';
-      titleSpan.textContent = tab.title || 'Untitled';
-      titleSpan.title = tab.title || 'Untitled';
-
-      // Three-dot menu button
-      const menuBtn = document.createElement('button');
-      menuBtn.className = 'tab-menu-btn';
-      menuBtn.setAttribute('aria-label', 'File options');
-      menuBtn.title = 'File options';
-      menuBtn.innerHTML = '&#8943;';
-
-      // Dropdown
-      const dropdown = document.createElement('div');
-      dropdown.className = 'tab-menu-dropdown';
-      dropdown.innerHTML =
-        '<button class="tab-menu-item" data-action="rename"><i class="bi bi-pencil"></i> Rename</button>' +
-        '<button class="tab-menu-item" data-action="duplicate"><i class="bi bi-files"></i> Duplicate</button>' +
-        '<button class="tab-menu-item tab-menu-item-danger" data-action="delete"><i class="bi bi-trash"></i> Delete</button>';
-
-      menuBtn.appendChild(dropdown);
-
-      menuBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        // Close all other open dropdowns first
-        document.querySelectorAll('.tab-menu-btn.open').forEach(function(btn) {
-          if (btn !== menuBtn) btn.classList.remove('open');
-        });
-        menuBtn.classList.toggle('open');
-        // Position the dropdown relative to the viewport so it escapes the
-        // overflow scroll container on .tab-list
-        if (menuBtn.classList.contains('open')) {
-          var rect = menuBtn.getBoundingClientRect();
-          dropdown.style.top = (rect.bottom + 4) + 'px';
-          dropdown.style.right = (window.innerWidth - rect.right) + 'px';
-          dropdown.style.left = 'auto';
-        }
-      });
-
-      dropdown.querySelectorAll('.tab-menu-item').forEach(function(actionBtn) {
-        actionBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          menuBtn.classList.remove('open');
-          const action = actionBtn.getAttribute('data-action');
-          if (action === 'rename') renameTab(tab.id);
-          else if (action === 'duplicate') duplicateTab(tab.id);
-          else if (action === 'delete') deleteTab(tab.id);
-        });
-      });
-
-      item.appendChild(titleSpan);
-      item.appendChild(menuBtn);
-
-      item.addEventListener('click', function() {
-        switchTab(tab.id);
-      });
-
-      item.addEventListener('dragstart', function() {
-        draggedTabId = tab.id;
-        setTimeout(function() { item.classList.add('dragging'); }, 0);
-      });
-
-      item.addEventListener('dragend', function() {
-        item.classList.remove('dragging');
-        draggedTabId = null;
-      });
-
-      item.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        item.classList.add('drag-over');
-      });
-
-      item.addEventListener('dragleave', function() {
-        item.classList.remove('drag-over');
-      });
-
-      item.addEventListener('drop', function(e) {
-        e.preventDefault();
-        item.classList.remove('drag-over');
-        if (!draggedTabId || draggedTabId === tab.id) return;
-        const fromIdx = tabs.findIndex(function(t) { return t.id === draggedTabId; });
-        const toIdx = tabs.findIndex(function(t) { return t.id === tab.id; });
-        if (fromIdx === -1 || toIdx === -1) return;
-        const moved = tabs.splice(fromIdx, 1)[0];
-        tabs.splice(toIdx, 0, moved);
-        saveTabsToStorage(tabs);
-        renderTabBar(tabs, activeTabId);
-      });
-
-      tabList.appendChild(item);
-    });
-
-    // "+ Create" button at end of tab list
-    const newBtn = document.createElement('button');
-    newBtn.className = 'tab-new-btn';
-    newBtn.title = 'New Tab (Ctrl+T)';
-    newBtn.setAttribute('aria-label', 'Open new tab');
-    newBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
-    newBtn.addEventListener('click', function() { newTab(); });
-    tabList.appendChild(newBtn);
-
-    // Auto-scroll active tab into view
-    const activeItem = tabList.querySelector('.tab-item.active');
-    if (activeItem) {
-      activeItem.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-
-    renderMobileTabList(tabsArr, currentActiveTabId);
-  }
-
-  function renderMobileTabList(tabsArr, currentActiveTabId) {
-    const mobileTabList = document.getElementById('mobile-tab-list');
-    if (!mobileTabList) return;
-    mobileTabList.innerHTML = '';
-    tabsArr.forEach(function(tab) {
-      const item = document.createElement('div');
-      item.className = 'mobile-tab-item' + (tab.id === currentActiveTabId ? ' active' : '');
-      item.setAttribute('role', 'tab');
-      item.setAttribute('aria-selected', tab.id === currentActiveTabId ? 'true' : 'false');
-      item.setAttribute('data-tab-id', tab.id);
-
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'mobile-tab-title';
-      titleSpan.textContent = tab.title || 'Untitled';
-      titleSpan.title = tab.title || 'Untitled';
-
-      // Three-dot menu button (same as desktop)
-      const menuBtn = document.createElement('button');
-      menuBtn.className = 'tab-menu-btn';
-      menuBtn.setAttribute('aria-label', 'File options');
-      menuBtn.title = 'File options';
-      menuBtn.innerHTML = '&#8943;';
-
-      // Dropdown (same as desktop)
-      const dropdown = document.createElement('div');
-      dropdown.className = 'tab-menu-dropdown';
-      dropdown.innerHTML =
-        '<button class="tab-menu-item" data-action="rename"><i class="bi bi-pencil"></i> Rename</button>' +
-        '<button class="tab-menu-item" data-action="duplicate"><i class="bi bi-files"></i> Duplicate</button>' +
-        '<button class="tab-menu-item tab-menu-item-danger" data-action="delete"><i class="bi bi-trash"></i> Delete</button>';
-
-      menuBtn.appendChild(dropdown);
-
-      menuBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        document.querySelectorAll('.tab-menu-btn.open').forEach(function(btn) {
-          if (btn !== menuBtn) btn.classList.remove('open');
-        });
-        menuBtn.classList.toggle('open');
-        if (menuBtn.classList.contains('open')) {
-          const rect = menuBtn.getBoundingClientRect();
-          dropdown.style.top = (rect.bottom + 4) + 'px';
-          dropdown.style.right = (window.innerWidth - rect.right) + 'px';
-          dropdown.style.left = 'auto';
-        }
-      });
-
-      dropdown.querySelectorAll('.tab-menu-item').forEach(function(actionBtn) {
-        actionBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          menuBtn.classList.remove('open');
-          const action = actionBtn.getAttribute('data-action');
-          if (action === 'rename') {
-            closeMobileMenu();
-            renameTab(tab.id);
-          } else if (action === 'duplicate') {
-            duplicateTab(tab.id);
-            closeMobileMenu();
-          } else if (action === 'delete') {
-            deleteTab(tab.id);
-          }
-        });
-      });
-
-      item.appendChild(titleSpan);
-      item.appendChild(menuBtn);
-
-      item.addEventListener('click', function() {
-        switchTab(tab.id);
-        closeMobileMenu();
-      });
-
-      mobileTabList.appendChild(item);
-    });
-  }
-
-  // Close any open tab dropdown when clicking elsewhere in the document
-  document.addEventListener('click', function() {
-    document.querySelectorAll('.tab-menu-btn.open').forEach(function(btn) {
-      btn.classList.remove('open');
-    });
-  });
-
-  function saveCurrentTabState() {
-    const tab = tabs.find(function(t) { return t.id === activeTabId; });
-    if (!tab) return;
-    tab.content = markdownEditor.value;
-    tab.scrollPos = markdownEditor.scrollTop;
-    tab.viewMode = currentViewMode || 'split';
-    saveTabsToStorage(tabs);
-  }
-
-  function restoreViewMode(mode) {
-    currentViewMode = null;
-    setViewMode(mode || 'split');
-  }
-
-  function switchTab(tabId) {
-    if (tabId === activeTabId) return;
-    saveCurrentTabState();
-    activeTabId = tabId;
-    saveActiveTabId(activeTabId);
-    const tab = tabs.find(function(t) { return t.id === tabId; });
-    if (!tab) return;
-    markdownEditor.value = tab.content;
-    restoreViewMode(tab.viewMode);
-    renderMarkdown();
-    requestAnimationFrame(function() {
-      markdownEditor.scrollTop = tab.scrollPos || 0;
-    });
-    renderTabBar(tabs, activeTabId);
-  }
-
-  function newTab(content, title) {
-    if (content === undefined) content = '';
-    if (tabs.length >= 20) {
-      alert('Maximum of 20 tabs reached. Please close an existing tab to open a new one.');
-      return;
-    }
-    if (!title) title = nextUntitledTitle();
-    const tab = createTab(content, title);
-    tabs.push(tab);
-    switchTab(tab.id);
-    markdownEditor.focus();
-  }
-
-  function closeTab(tabId) {
-    const idx = tabs.findIndex(function(t) { return t.id === tabId; });
-    if (idx === -1) return;
-    tabs.splice(idx, 1);
-    if (tabs.length === 0) {
-      // Auto-create new "Untitled" when last tab is deleted
-      const newT = createTab('', nextUntitledTitle());
-      tabs.push(newT);
-      activeTabId = newT.id;
-      saveActiveTabId(activeTabId);
-      markdownEditor.value = '';
-      restoreViewMode('split');
-      renderMarkdown();
-    } else if (activeTabId === tabId) {
-      const newIdx = Math.max(0, idx - 1);
-      activeTabId = tabs[newIdx].id;
-      saveActiveTabId(activeTabId);
-      const newActiveTab = tabs[newIdx];
-      markdownEditor.value = newActiveTab.content;
-      restoreViewMode(newActiveTab.viewMode);
-      renderMarkdown();
-      requestAnimationFrame(function() {
-        markdownEditor.scrollTop = newActiveTab.scrollPos || 0;
-      });
-    }
-    saveTabsToStorage(tabs);
-    renderTabBar(tabs, activeTabId);
-  }
-
-  function deleteTab(tabId) {
-    closeTab(tabId);
-  }
-
-  function renameTab(tabId) {
-    const tab = tabs.find(function(t) { return t.id === tabId; });
-    if (!tab) return;
-    const modal = document.getElementById('rename-modal');
-    const input = document.getElementById('rename-modal-input');
-    const confirmBtn = document.getElementById('rename-modal-confirm');
-    const cancelBtn = document.getElementById('rename-modal-cancel');
-    if (!modal || !input) return;
-    input.value = tab.title;
-    modal.style.display = 'flex';
-    input.focus();
-    input.select();
-
-    function doRename() {
-      const newName = input.value.trim();
-      if (newName) {
-        tab.title = newName;
-        saveTabsToStorage(tabs);
-        renderTabBar(tabs, activeTabId);
-      }
-      modal.style.display = 'none';
-      cleanup();
-    }
-
-    function cleanup() {
-      confirmBtn.removeEventListener('click', doRename);
-      cancelBtn.removeEventListener('click', doCancel);
-      input.removeEventListener('keydown', onKey);
-    }
-
-    function doCancel() {
-      modal.style.display = 'none';
-      cleanup();
-    }
-
-    function onKey(e) {
-      if (e.key === 'Enter') doRename();
-      else if (e.key === 'Escape') doCancel();
-    }
-
-    confirmBtn.addEventListener('click', doRename);
-    cancelBtn.addEventListener('click', doCancel);
-    input.addEventListener('keydown', onKey);
-  }
-
-  function duplicateTab(tabId) {
-    const tab = tabs.find(function(t) { return t.id === tabId; });
-    if (!tab) return;
-    if (tabs.length >= 20) {
-      alert('Maximum of 20 tabs reached. Please close an existing tab to open a new one.');
-      return;
-    }
-    saveCurrentTabState();
-    const dupTitle = tab.title + ' (copy)';
-    const dup = createTab(tab.content, dupTitle, tab.viewMode);
-    const idx = tabs.findIndex(function(t) { return t.id === tabId; });
-    tabs.splice(idx + 1, 0, dup);
-    switchTab(dup.id);
-  }
-
-  function resetAllTabs() {
-    const modal = document.getElementById('reset-confirm-modal');
-    const confirmBtn = document.getElementById('reset-modal-confirm');
-    const cancelBtn = document.getElementById('reset-modal-cancel');
-    if (!modal) return;
-    modal.style.display = 'flex';
-
-    function doReset() {
-      modal.style.display = 'none';
-      cleanup();
-      tabs = [];
-      untitledCounter = 0;
-      saveUntitledCounter(0);
-      const welcome = createTab(sampleMarkdown, 'Welcome to Markdown');
-      tabs.push(welcome);
-      activeTabId = welcome.id;
-      saveActiveTabId(activeTabId);
-      saveTabsToStorage(tabs);
-      markdownEditor.value = sampleMarkdown;
-      restoreViewMode('split');
-      renderMarkdown();
-      renderTabBar(tabs, activeTabId);
-    }
-
-    function doCancel() {
-      modal.style.display = 'none';
-      cleanup();
-    }
-
-    function cleanup() {
-      confirmBtn.removeEventListener('click', doReset);
-      cancelBtn.removeEventListener('click', doCancel);
-    }
-
-    confirmBtn.addEventListener('click', doReset);
-    cancelBtn.addEventListener('click', doCancel);
-  }
-
-  function initTabs() {
-    untitledCounter = loadUntitledCounter();
-    tabs = loadTabsFromStorage();
-    activeTabId = loadActiveTabId();
-    if (tabs.length === 0) {
-      const tab = createTab(sampleMarkdown, 'Welcome to Markdown');
-      tabs.push(tab);
-      activeTabId = tab.id;
-      saveTabsToStorage(tabs);
-      saveActiveTabId(activeTabId);
-    } else if (!tabs.find(function(t) { return t.id === activeTabId; })) {
-      activeTabId = tabs[0].id;
-      saveActiveTabId(activeTabId);
-    }
-    const activeTab = tabs.find(function(t) { return t.id === activeTabId; });
-    markdownEditor.value = activeTab.content;
-    restoreViewMode(activeTab.viewMode);
-    renderMarkdown();
-    requestAnimationFrame(function() {
-      markdownEditor.scrollTop = activeTab.scrollPos || 0;
-    });
-    renderTabBar(tabs, activeTabId);
-  }
-
   function renderMarkdown() {
     try {
       const markdown = markdownEditor.value;
@@ -766,21 +300,23 @@ This is a fully client-side application. Your content never leaves your browser 
       });
       markdownPreview.innerHTML = sanitizedHtml;
 
+      markdownPreview.querySelectorAll("pre code").forEach((block) => {
+        try {
+          if (!block.classList.contains('mermaid') && !block.classList.contains('hljs')) {
+            hljs.highlightElement(block);
+          }
+        } catch (e) {
+          console.warn("Syntax highlighting failed for a code block:", e);
+        }
+      });
+
       processEmojis(markdownPreview);
       
       // Reinitialize mermaid with current theme before rendering diagrams
       initMermaid();
       
       try {
-        const mermaidNodes = markdownPreview.querySelectorAll('.mermaid');
-        if (mermaidNodes.length > 0) {
-          Promise.resolve(mermaid.init(undefined, mermaidNodes))
-            .then(() => addMermaidToolbars())
-            .catch((e) => {
-              console.warn("Mermaid rendering failed:", e);
-              addMermaidToolbars();
-            });
-        }
+        mermaid.init(undefined, markdownPreview.querySelectorAll('.mermaid'));
       } catch (e) {
         console.warn("Mermaid rendering failed:", e);
       }
@@ -808,183 +344,11 @@ This is a fully client-side application. Your content never leaves your browser 
   function importMarkdownFile(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      newTab(e.target.result, file.name.replace(/\.md$/i, ''));
+      markdownEditor.value = e.target.result;
+      renderMarkdown();
       dropzone.style.display = "none";
     };
     reader.readAsText(file);
-  }
-
-  function isMarkdownPath(path) {
-    return /\.(md|markdown)$/i.test(path || "");
-  }
-  const MAX_GITHUB_FILES_SHOWN = 30;
-
-  function getFileName(path) {
-    return (path || "").split("/").pop() || "document.md";
-  }
-
-  function buildRawGitHubUrl(owner, repo, ref, filePath) {
-    const encodedPath = filePath
-      .split("/")
-      .map((part) => encodeURIComponent(part))
-      .join("/");
-    return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${encodedPath}`;
-  }
-
-  async function fetchGitHubJson(url) {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github+json"
-      }
-    });
-    if (!response.ok) {
-      throw new Error(`GitHub API request failed (${response.status})`);
-    }
-    return response.json();
-  }
-
-  async function fetchTextContent(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file (${response.status})`);
-    }
-    return response.text();
-  }
-
-  function parseGitHubImportUrl(input) {
-    let parsedUrl;
-    try {
-      parsedUrl = new URL((input || "").trim());
-    } catch (_) {
-      return null;
-    }
-
-    const host = parsedUrl.hostname.replace(/^www\./, "");
-    const segments = parsedUrl.pathname.split("/").filter(Boolean);
-
-    if (host === "raw.githubusercontent.com") {
-      if (segments.length < 5) return null;
-      const [owner, repo, ref, ...rest] = segments;
-      const filePath = rest.join("/");
-      return { owner, repo, ref, type: "file", filePath };
-    }
-
-    if (host !== "github.com" || segments.length < 2) return null;
-
-    const owner = segments[0];
-    const repo = segments[1].replace(/\.git$/i, "");
-    if (segments.length === 2) {
-      return { owner, repo, type: "repo" };
-    }
-
-    const mode = segments[2];
-    if (mode === "blob" && segments.length >= 5) {
-      return {
-        owner,
-        repo,
-        type: "file",
-        ref: segments[3],
-        filePath: segments.slice(4).join("/")
-      };
-    }
-
-    if (mode === "tree" && segments.length >= 4) {
-      return {
-        owner,
-        repo,
-        type: "tree",
-        ref: segments[3],
-        basePath: segments.slice(4).join("/")
-      };
-    }
-
-    return { owner, repo, type: "repo" };
-  }
-
-  async function getDefaultBranch(owner, repo) {
-    const repoInfo = await fetchGitHubJson(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
-    return repoInfo.default_branch;
-  }
-
-  async function listMarkdownFiles(owner, repo, ref, basePath) {
-    const treeResponse = await fetchGitHubJson(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(ref)}?recursive=1`);
-    const normalizedBasePath = (basePath || "").replace(/^\/+|\/+$/g, "");
-
-    return (treeResponse.tree || [])
-      .filter((entry) => entry.type === "blob" && isMarkdownPath(entry.path))
-      .filter((entry) => !normalizedBasePath || entry.path === normalizedBasePath || entry.path.startsWith(normalizedBasePath + "/"))
-      .map((entry) => entry.path)
-      .sort((a, b) => a.localeCompare(b));
-  }
-
-  function setGitHubImportLoading(isLoading) {
-    [importGithubButton, mobileImportGithubBtn].forEach((btn) => {
-      if (!btn) return;
-      if (!btn.dataset.originalText) {
-        btn.dataset.originalText = btn.innerHTML;
-      }
-      btn.disabled = isLoading;
-      btn.innerHTML = isLoading ? '<i class="bi bi-hourglass-split"></i> Importing...' : btn.dataset.originalText;
-    });
-  }
-
-  async function importMarkdownFromGitHub() {
-    const urlInput = prompt("Enter a GitHub repository, folder, or Markdown file URL:");
-    if (!urlInput) return;
-
-    const parsed = parseGitHubImportUrl(urlInput);
-    if (!parsed || !parsed.owner || !parsed.repo) {
-      alert("Please enter a valid GitHub URL.");
-      return;
-    }
-
-    setGitHubImportLoading(true);
-    try {
-      if (parsed.type === "file") {
-        if (!isMarkdownPath(parsed.filePath)) {
-          throw new Error("The provided URL does not point to a Markdown file.");
-        }
-        const markdown = await fetchTextContent(buildRawGitHubUrl(parsed.owner, parsed.repo, parsed.ref, parsed.filePath));
-        newTab(markdown, getFileName(parsed.filePath).replace(/\.(md|markdown)$/i, ""));
-        return;
-      }
-
-      const ref = parsed.ref || await getDefaultBranch(parsed.owner, parsed.repo);
-      const files = await listMarkdownFiles(parsed.owner, parsed.repo, ref, parsed.basePath || "");
-
-      if (!files.length) {
-        alert("No Markdown files were found at that GitHub location.");
-        return;
-      }
-
-      let targetPath = files[0];
-      if (files.length > 1) {
-        const maxShown = Math.min(files.length, MAX_GITHUB_FILES_SHOWN);
-        const choices = files
-          .slice(0, maxShown)
-          .map((file, index) => `${index + 1}. ${file}`)
-          .join("\n");
-        const choice = prompt(
-          `Found ${files.length} Markdown files.\nEnter a number to import (showing first ${maxShown}):\n\n${choices}${files.length > maxShown ? "\n..." : ""}`,
-          "1"
-        );
-
-        if (choice === null) return;
-        const selectedIndex = Number(choice) - 1;
-        if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= maxShown) {
-          throw new Error(`Please enter a number between 1 and ${maxShown} (from the displayed list).`);
-        }
-        targetPath = files[selectedIndex];
-      }
-
-      const markdown = await fetchTextContent(buildRawGitHubUrl(parsed.owner, parsed.repo, ref, targetPath));
-      newTab(markdown, getFileName(targetPath).replace(/\.(md|markdown)$/i, ""));
-    } catch (error) {
-      console.error("GitHub import failed:", error);
-      alert("GitHub import failed: " + error.message);
-    } finally {
-      setGitHubImportLoading(false);
-    }
   }
 
   function processEmojis(element) {
@@ -1316,9 +680,6 @@ This is a fully client-side application. Your content never leaves your browser 
     }
   });
   mobileImportBtn.addEventListener("click", () => fileInput.click());
-  mobileImportGithubBtn.addEventListener("click", () => {
-    importMarkdownFromGitHub().finally(closeMobileMenu);
-  });
   mobileExportMd.addEventListener("click", () => exportMd.click());
   mobileExportHtml.addEventListener("click", () => exportHtml.click());
   mobileExportPdf.addEventListener("click", () => exportPdf.click());
@@ -1327,25 +688,12 @@ This is a fully client-side application. Your content never leaves your browser 
     themeToggle.click();
     mobileThemeToggle.innerHTML = themeToggle.innerHTML + " Toggle Dark Mode";
   });
-
-  const mobileNewTabBtn = document.getElementById("mobile-new-tab-btn");
-  if (mobileNewTabBtn) {
-    mobileNewTabBtn.addEventListener("click", function() {
-      newTab();
-      closeMobileMenu();
-    });
-  }
-
-  const mobileTabResetBtn = document.getElementById("mobile-tab-reset-btn");
-  if (mobileTabResetBtn) {
-    mobileTabResetBtn.addEventListener("click", function() {
-      closeMobileMenu();
-      resetAllTabs();
-    });
-  }
   
-  initTabs();
+  renderMarkdown();
   updateMobileStats();
+
+  // Initialize view mode - Story 1.1
+  contentContainer.classList.add('view-split');
 
   // Initialize resizer - Story 1.3
   initResizer();
@@ -1355,7 +703,6 @@ This is a fully client-side application. Your content never leaves your browser 
     btn.addEventListener('click', function() {
       const mode = this.getAttribute('data-mode');
       setViewMode(mode);
-      saveCurrentTabState();
     });
   });
 
@@ -1364,16 +711,11 @@ This is a fully client-side application. Your content never leaves your browser 
     btn.addEventListener('click', function() {
       const mode = this.getAttribute('data-mode');
       setViewMode(mode);
-      saveCurrentTabState();
       closeMobileMenu();
     });
   });
 
-  markdownEditor.addEventListener("input", function() {
-    debouncedRender();
-    clearTimeout(saveTabStateTimeout);
-    saveTabStateTimeout = setTimeout(saveCurrentTabState, 500);
-  });
+  markdownEditor.addEventListener("input", debouncedRender);
   
   // Tab key handler to insert indentation instead of moving focus
   markdownEditor.addEventListener("keydown", function(e) {
@@ -1421,10 +763,6 @@ This is a fully client-side application. Your content never leaves your browser 
     fileInput.click();
   });
 
-  importGithubButton.addEventListener("click", function () {
-    importMarkdownFromGitHub();
-  });
-
   fileInput.addEventListener("change", function (e) {
     const file = e.target.files[0];
     if (file) {
@@ -1465,6 +803,9 @@ This is a fully client-side application. Your content never leaves your browser 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Markdown Export</title>
   <link rel="stylesheet" href="${cssTheme}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${
+    isDarkTheme ? "github-dark" : "github"
+  }.min.css">
   <style>
       body {
           background-color: ${isDarkTheme ? "#0d1117" : "#ffffff"};
@@ -1479,23 +820,6 @@ This is a fully client-side application. Your content never leaves your browser 
           background-color: ${isDarkTheme ? "#0d1117" : "#ffffff"};
           color: ${isDarkTheme ? "#c9d1d9" : "#24292e"};
       }
-
-      /* Syntax Highlighting */
-      .hljs-doctag, .hljs-keyword, .hljs-template-tag, .hljs-template-variable, .hljs-type, .hljs-variable.language_ { color: ${isDarkTheme ? "#ff7b72" : "#d73a49"}; }
-      .hljs-title, .hljs-title.class_, .hljs-title.class_.inherited__, .hljs-title.function_ { color: ${isDarkTheme ? "#d2a8ff" : "#6f42c1"}; }
-      .hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id { color: ${isDarkTheme ? "#79c0ff" : "#005cc5"}; }
-      .hljs-regexp, .hljs-string, .hljs-meta .hljs-string { color: ${isDarkTheme ? "#a5d6ff" : "#032f62"}; }
-      .hljs-built_in, .hljs-symbol { color: ${isDarkTheme ? "#ffa657" : "#e36209"}; }
-      .hljs-comment, .hljs-code, .hljs-formula { color: ${isDarkTheme ? "#8b949e" : "#6a737d"}; }
-      .hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo { color: ${isDarkTheme ? "#7ee787" : "#22863a"}; }
-      .hljs-subst { color: ${isDarkTheme ? "#c9d1d9" : "#24292e"}; }
-      .hljs-section { color: ${isDarkTheme ? "#1f6feb" : "#005cc5"}; font-weight: bold; }
-      .hljs-bullet { color: ${isDarkTheme ? "#79c0ff" : "#005cc5"}; }
-      .hljs-emphasis { font-style: italic; }
-      .hljs-strong { font-weight: bold; }
-      .hljs-addition { color: ${isDarkTheme ? "#aff5b4" : "#22863a"}; background-color: ${isDarkTheme ? "#033a16" : "#f0fff4"}; }
-      .hljs-deletion { color: ${isDarkTheme ? "#ffdcd7" : "#b31d28"}; background-color: ${isDarkTheme ? "#67060c" : "#ffeef0"}; }
-
       @media (max-width: 767px) {
           .markdown-body {
               padding: 15px;
@@ -2194,95 +1518,6 @@ This is a fully client-side application. Your content never leaves your browser 
     }, 2000);
   }
 
-  // ============================================
-  // Share via URL (pako compression + base64url)
-  // ============================================
-
-  const MAX_SHARE_URL_LENGTH = 32000;
-
-  function encodeMarkdownForShare(text) {
-    const compressed = pako.deflate(new TextEncoder().encode(text));
-    const chunkSize = 0x8000;
-    let binary = '';
-    for (let i = 0; i < compressed.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, compressed.subarray(i, i + chunkSize));
-    }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  function decodeMarkdownFromShare(encoded) {
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-    return new TextDecoder().decode(pako.inflate(bytes));
-  }
-
-  function copyShareUrl(btn) {
-    const markdownText = markdownEditor.value;
-    let encoded;
-    try {
-      encoded = encodeMarkdownForShare(markdownText);
-    } catch (e) {
-      console.error("Share encoding failed:", e);
-      alert("Failed to encode content for sharing: " + e.message);
-      return;
-    }
-
-    const shareUrl = window.location.origin + window.location.pathname + '#share=' + encoded;
-    const tooLarge = shareUrl.length > MAX_SHARE_URL_LENGTH;
-
-    const originalHTML = btn.innerHTML;
-    const copiedHTML = '<i class="bi bi-check-lg"></i> Copied!';
-
-    function onCopied() {
-      if (!tooLarge) {
-        window.location.hash = 'share=' + encoded;
-      }
-      btn.innerHTML = copiedHTML;
-      setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
-    }
-
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(shareUrl).then(onCopied).catch(() => {
-        // clipboard.writeText failed; nothing further to do in secure context
-      });
-    } else {
-      try {
-        const tempInput = document.createElement("textarea");
-        tempInput.value = shareUrl;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand("copy");
-        document.body.removeChild(tempInput);
-        onCopied();
-      } catch (_) {
-        // copy failed silently
-      }
-    }
-  }
-
-  shareButton.addEventListener("click", function () { copyShareUrl(shareButton); });
-  mobileShareButton.addEventListener("click", function () { copyShareUrl(mobileShareButton); });
-
-  function loadFromShareHash() {
-    if (typeof pako === 'undefined') return;
-    const hash = window.location.hash;
-    if (!hash.startsWith('#share=')) return;
-    const encoded = hash.slice('#share='.length);
-    if (!encoded) return;
-    try {
-      const decoded = decodeMarkdownFromShare(encoded);
-      markdownEditor.value = decoded;
-      renderMarkdown();
-      saveCurrentTabState();
-    } catch (e) {
-      console.error("Failed to load shared content:", e);
-      alert("The shared URL could not be decoded. It may be corrupted or incomplete.");
-    }
-  }
-
-  loadFromShareHash();
-
   const dropEvents = ["dragenter", "dragover", "dragleave", "drop"];
 
   dropEvents.forEach((eventName) => {
@@ -2345,13 +1580,8 @@ This is a fully client-side application. Your content never leaves your browser 
       exportMd.click();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-      const activeEl = document.activeElement;
-      const isTextControl = activeEl && (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
-      const hasSelection = window.getSelection && window.getSelection().toString().trim().length > 0;
-      if (!isTextControl && !hasSelection) {
-        e.preventDefault();
-        copyMarkdownButton.click();
-      }
+      e.preventDefault();
+      copyMarkdownButton.click();
     }
     // Story 1.2: Only allow sync toggle shortcut when in split view
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "S") {
@@ -2360,347 +1590,5 @@ This is a fully client-side application. Your content never leaves your browser 
         toggleSyncScrolling();
       }
     }
-    // New tab
-    if ((e.ctrlKey || e.metaKey) && e.key === "t") {
-      e.preventDefault();
-      newTab();
-    }
-    // Close tab
-    if ((e.ctrlKey || e.metaKey) && e.key === "w") {
-      e.preventDefault();
-      closeTab(activeTabId);
-    }
-    // Close Mermaid zoom modal with Escape
-    if (e.key === "Escape") {
-      closeMermaidModal();
-    }
   });
-
-  document.getElementById('tab-reset-btn').addEventListener('click', function() {
-    resetAllTabs();
-  });
-
-  // ========================================
-  // MERMAID DIAGRAM TOOLBAR
-  // ========================================
-
-  /**
-   * Serialises an SVG element to a data URL suitable for use as an image source.
-   * Inline styles and dimensions are preserved so the PNG matches the rendered diagram.
-   */
-  function svgToDataUrl(svgEl) {
-    const clone = svgEl.cloneNode(true);
-    // Ensure explicit width/height so the canvas has the right dimensions
-    const bbox = svgEl.getBoundingClientRect();
-    if (!clone.getAttribute('width'))  clone.setAttribute('width',  Math.round(bbox.width));
-    if (!clone.getAttribute('height')) clone.setAttribute('height', Math.round(bbox.height));
-    const serialized = new XMLSerializer().serializeToString(clone);
-    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(serialized);
-  }
-
-  /**
-   * Renders an SVG element onto a canvas and resolves with the canvas.
-   */
-  function svgToCanvas(svgEl) {
-    return new Promise((resolve, reject) => {
-      const bbox = svgEl.getBoundingClientRect();
-      const scale = window.devicePixelRatio || 1;
-      const width  = Math.max(Math.round(bbox.width),  1);
-      const height = Math.max(Math.round(bbox.height), 1);
-
-      const canvas = document.createElement('canvas');
-      canvas.width  = width  * scale;
-      canvas.height = height * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(scale, scale);
-
-      // Fill background matching current theme using the CSS variable value
-      const bgColor = getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg-color').trim() || '#ffffff';
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, width, height);
-
-      const img = new Image();
-      img.onload  = () => { ctx.drawImage(img, 0, 0, width, height); resolve(canvas); };
-      img.onerror = reject;
-      img.src = svgToDataUrl(svgEl);
-    });
-  }
-
-  /** Downloads the diagram in the given container as a PNG file. */
-  async function downloadMermaidPng(container, btn) {
-    const svgEl = container.querySelector('svg');
-    if (!svgEl) return;
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-    try {
-      const canvas = await svgToCanvas(svgEl);
-      canvas.toBlob(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `diagram-${Date.now()}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
-        btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-        setTimeout(() => { btn.innerHTML = original; }, 1500);
-      }, 'image/png');
-    } catch (e) {
-      console.error('Mermaid PNG export failed:', e);
-      btn.innerHTML = original;
-    }
-  }
-
-  /** Copies the diagram in the given container as a PNG image to the clipboard. */
-  async function copyMermaidImage(container, btn) {
-    const svgEl = container.querySelector('svg');
-    if (!svgEl) return;
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-    try {
-      const canvas = await svgToCanvas(svgEl);
-      canvas.toBlob(async blob => {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]);
-          btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-        } catch (clipErr) {
-          console.error('Clipboard write failed:', clipErr);
-          btn.innerHTML = '<i class="bi bi-x-lg"></i>';
-        }
-        setTimeout(() => { btn.innerHTML = original; }, 1800);
-      }, 'image/png');
-    } catch (e) {
-      console.error('Mermaid copy failed:', e);
-      btn.innerHTML = original;
-    }
-  }
-
-  /** Downloads the SVG source of a diagram. */
-  function downloadMermaidSvg(container, btn) {
-    const svgEl = container.querySelector('svg');
-    if (!svgEl) return;
-    const clone = svgEl.cloneNode(true);
-    const serialized = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([serialized], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `diagram-${Date.now()}.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-    setTimeout(() => { btn.innerHTML = original; }, 1500);
-  }
-
-  // ---- Zoom modal state ----
-  let modalZoomScale = 1;
-  let modalPanX = 0;
-  let modalPanY = 0;
-  let modalIsDragging = false;
-  let modalDragStart = { x: 0, y: 0 };
-  let modalCurrentSvgEl = null;
-
-  const mermaidZoomModal   = document.getElementById('mermaid-zoom-modal');
-  const mermaidModalDiagram = document.getElementById('mermaid-modal-diagram');
-
-  function applyModalTransform() {
-    if (modalCurrentSvgEl) {
-      modalCurrentSvgEl.style.transform =
-        `translate(${modalPanX}px, ${modalPanY}px) scale(${modalZoomScale})`;
-    }
-  }
-
-  function closeMermaidModal() {
-    if (!mermaidZoomModal.classList.contains('active')) return;
-    mermaidZoomModal.classList.remove('active');
-    mermaidModalDiagram.innerHTML = '';
-    modalCurrentSvgEl = null;
-    modalZoomScale = 1;
-    modalPanX = 0;
-    modalPanY = 0;
-  }
-
-  /** Opens the zoom modal with the SVG from the given container. */
-  function openMermaidZoomModal(container) {
-    const svgEl = container.querySelector('svg');
-    if (!svgEl) return;
-
-    mermaidModalDiagram.innerHTML = '';
-    modalZoomScale = 1;
-    modalPanX = 0;
-    modalPanY = 0;
-
-    const svgClone = svgEl.cloneNode(true);
-    // Remove fixed dimensions so it sizes naturally inside the modal
-    svgClone.removeAttribute('width');
-    svgClone.removeAttribute('height');
-    svgClone.style.width  = 'auto';
-    svgClone.style.height = 'auto';
-    svgClone.style.maxWidth  = '80vw';
-    svgClone.style.maxHeight = '60vh';
-    svgClone.style.transformOrigin = 'center';
-    mermaidModalDiagram.appendChild(svgClone);
-    modalCurrentSvgEl = svgClone;
-
-    mermaidZoomModal.classList.add('active');
-  }
-
-  // Modal close button
-  document.getElementById('mermaid-modal-close').addEventListener('click', closeMermaidModal);
-  // Click backdrop to close
-  mermaidZoomModal.addEventListener('click', function(e) {
-    if (e.target === mermaidZoomModal) closeMermaidModal();
-  });
-
-  // Zoom controls
-  document.getElementById('mermaid-modal-zoom-in').addEventListener('click', () => {
-    modalZoomScale = Math.min(modalZoomScale + 0.25, 10);
-    applyModalTransform();
-  });
-  document.getElementById('mermaid-modal-zoom-out').addEventListener('click', () => {
-    modalZoomScale = Math.max(modalZoomScale - 0.25, 0.1);
-    applyModalTransform();
-  });
-  document.getElementById('mermaid-modal-zoom-reset').addEventListener('click', () => {
-    modalZoomScale = 1; modalPanX = 0; modalPanY = 0;
-    applyModalTransform();
-  });
-
-  // Mouse-wheel zoom inside modal
-  mermaidModalDiagram.addEventListener('wheel', function(e) {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.15 : -0.15;
-    modalZoomScale = Math.min(Math.max(modalZoomScale + delta, 0.1), 10);
-    applyModalTransform();
-  }, { passive: false });
-
-  // Drag to pan inside modal
-  mermaidModalDiagram.addEventListener('mousedown', function(e) {
-    modalIsDragging = true;
-    modalDragStart = { x: e.clientX - modalPanX, y: e.clientY - modalPanY };
-    mermaidModalDiagram.classList.add('dragging');
-  });
-  document.addEventListener('mousemove', function(e) {
-    if (!modalIsDragging) return;
-    modalPanX = e.clientX - modalDragStart.x;
-    modalPanY = e.clientY - modalDragStart.y;
-    applyModalTransform();
-  });
-  document.addEventListener('mouseup', function() {
-    if (modalIsDragging) {
-      modalIsDragging = false;
-      mermaidModalDiagram.classList.remove('dragging');
-    }
-  });
-
-  // Modal download buttons (operate on the currently displayed SVG)
-  document.getElementById('mermaid-modal-download-png').addEventListener('click', async function() {
-    if (!modalCurrentSvgEl) return;
-    const btn = this;
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-    try {
-      // Use the original SVG (with dimensions) for proper PNG rendering
-      const canvas = await svgToCanvas(modalCurrentSvgEl);
-      canvas.toBlob(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `diagram-${Date.now()}.png`; a.click();
-        URL.revokeObjectURL(url);
-        btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-        setTimeout(() => { btn.innerHTML = original; }, 1500);
-      }, 'image/png');
-    } catch (e) {
-      console.error('Modal PNG export failed:', e);
-      btn.innerHTML = original;
-    }
-  });
-
-  document.getElementById('mermaid-modal-copy').addEventListener('click', async function() {
-    if (!modalCurrentSvgEl) return;
-    const btn = this;
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-    try {
-      const canvas = await svgToCanvas(modalCurrentSvgEl);
-      canvas.toBlob(async blob => {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]);
-          btn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-        } catch (clipErr) {
-          console.error('Clipboard write failed:', clipErr);
-          btn.innerHTML = '<i class="bi bi-x-lg"></i>';
-        }
-        setTimeout(() => { btn.innerHTML = original; }, 1800);
-      }, 'image/png');
-    } catch (e) {
-      console.error('Modal copy failed:', e);
-      btn.innerHTML = original;
-    }
-  });
-
-  document.getElementById('mermaid-modal-download-svg').addEventListener('click', function() {
-    if (!modalCurrentSvgEl) return;
-    const serialized = new XMLSerializer().serializeToString(modalCurrentSvgEl);
-    const blob = new Blob([serialized], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `diagram-${Date.now()}.svg`; a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  /**
-   * Adds the hover toolbar to every rendered Mermaid container.
-   * Safe to call multiple times – existing toolbars are not duplicated.
-   */
-  function addMermaidToolbars() {
-    markdownPreview.querySelectorAll('.mermaid-container').forEach(container => {
-      if (container.querySelector('.mermaid-toolbar')) return; // already added
-      const svgEl = container.querySelector('svg');
-      if (!svgEl) return; // diagram not yet rendered
-
-      const toolbar = document.createElement('div');
-      toolbar.className = 'mermaid-toolbar';
-      toolbar.setAttribute('aria-label', 'Diagram actions');
-
-      const btnZoom = document.createElement('button');
-      btnZoom.className = 'mermaid-toolbar-btn';
-      btnZoom.title = 'Zoom diagram';
-      btnZoom.setAttribute('aria-label', 'Zoom diagram');
-      btnZoom.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
-      btnZoom.addEventListener('click', () => openMermaidZoomModal(container));
-
-      const btnPng = document.createElement('button');
-      btnPng.className = 'mermaid-toolbar-btn';
-      btnPng.title = 'Download PNG';
-      btnPng.setAttribute('aria-label', 'Download PNG');
-      btnPng.innerHTML = '<i class="bi bi-file-image"></i> PNG';
-      btnPng.addEventListener('click', () => downloadMermaidPng(container, btnPng));
-
-      const btnCopy = document.createElement('button');
-      btnCopy.className = 'mermaid-toolbar-btn';
-      btnCopy.title = 'Copy image to clipboard';
-      btnCopy.setAttribute('aria-label', 'Copy image to clipboard');
-      btnCopy.innerHTML = '<i class="bi bi-clipboard-image"></i> Copy';
-      btnCopy.addEventListener('click', () => copyMermaidImage(container, btnCopy));
-
-      const btnSvg = document.createElement('button');
-      btnSvg.className = 'mermaid-toolbar-btn';
-      btnSvg.title = 'Download SVG';
-      btnSvg.setAttribute('aria-label', 'Download SVG');
-      btnSvg.innerHTML = '<i class="bi bi-filetype-svg"></i> SVG';
-      btnSvg.addEventListener('click', () => downloadMermaidSvg(container, btnSvg));
-
-      toolbar.appendChild(btnZoom);
-      toolbar.appendChild(btnCopy);
-      toolbar.appendChild(btnPng);
-      toolbar.appendChild(btnSvg);
-      container.appendChild(toolbar);
-    });
-  }
 });
