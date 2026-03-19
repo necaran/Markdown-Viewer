@@ -1648,8 +1648,61 @@ a:focus {
   font-size: 12px;
   color: var(--color-danger-fg, #d73a49);
   text-align: left;
+  line-height: 1.5;
 }
 
 .github-import-error.is-info {
   color: var(--text-secondary, #57606a);
+}
+
+#github-import-modal .reset-modal-box {
+  width: min(720px, 92vw);
+  min-width: 320px;
+  padding: 28px 32px;
+  gap: 18px;
+}
+
+#github-import-modal .reset-modal-message {
+  font-size: 18px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+#github-import-url,
+#github-import-file-select {
+  min-height: 46px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+#github-import-modal .reset-modal-actions {
+  gap: 12px;
+}
+
+#github-import-modal .reset-modal-btn {
+  min-height: 42px;
+  padding: 9px 18px;
+  font-size: 14px;
+}
+
+@media (max-width: 576px) {
+  #github-import-modal .reset-modal-box {
+    width: 95vw;
+    max-width: 95vw;
+    min-width: 0;
+    padding: 20px;
+    gap: 14px;
+  }
+
+  #github-import-modal .reset-modal-message {
+    font-size: 16px;
+  }
+
+  #github-import-modal .reset-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  #github-import-modal .reset-modal-btn {
+    width: 100%;
+  }
 }
