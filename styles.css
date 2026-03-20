@@ -1656,7 +1656,8 @@ a:focus {
 }
 
 #github-import-modal .reset-modal-box {
-  width: min(980px, 96vw);
+  width: 60vw;
+  max-width: 60vw;
   min-width: 340px;
   padding: 30px 34px;
   gap: 16px;
