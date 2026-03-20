@@ -1144,12 +1144,12 @@ This is a fully client-side application. Your content never leaves your browser 
         return;
       }
 
+      githubImportFileSelect.innerHTML = "";
       githubImportUrlInput.style.display = "none";
       githubImportFileSelect.style.display = "none";
       if (githubImportTree) {
         githubImportTree.style.display = "block";
       }
-    githubImportFileSelect.innerHTML = "";
       shownFiles.forEach((filePath) => {
         const option = document.createElement("option");
         option.value = filePath;
