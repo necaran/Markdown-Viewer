@@ -1656,10 +1656,12 @@ a:focus {
 }
 
 #github-import-modal .reset-modal-box {
-  width: min(720px, 92vw);
-  min-width: 320px;
-  padding: 28px 32px;
-  gap: 18px;
+  width: 60vw;
+  max-width: 60vw;
+  min-width: 340px;
+  padding: 30px 34px;
+  gap: 16px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
 }
 
 #github-import-modal .reset-modal-message {
@@ -1673,6 +1675,80 @@ a:focus {
   min-height: 46px;
   padding: 10px 12px;
   font-size: 15px;
+}
+
+#github-import-file-select {
+  min-height: 180px;
+}
+
+.github-import-tree {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--bg-color);
+}
+
+.github-import-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--button-bg);
+}
+
+.github-import-selected-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.github-import-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.github-import-tree > ul {
+  padding-left: 4px;
+}
+
+.github-import-tree li {
+  margin: 2px 0;
+}
+
+.github-tree-folder-label {
+  display: inline-block;
+  font-size: 14px;
+  color: var(--text-secondary, #57606a);
+  margin-bottom: 4px;
+}
+
+.github-tree-file-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+}
+
+.github-tree-file-btn:hover,
+.github-tree-file-btn:focus-visible {
+  background: var(--button-hover);
+  outline: none;
+}
+
+.github-tree-file-btn.is-selected {
+  background: rgba(56, 139, 253, 0.14);
+  color: var(--accent-color);
 }
 
 #github-import-modal .reset-modal-actions {
@@ -1692,6 +1768,11 @@ a:focus {
     min-width: 0;
     padding: 20px;
     gap: 14px;
+  }
+
+  .github-import-selection-toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   #github-import-modal .reset-modal-message {

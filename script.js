@@ -65,6 +65,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const githubImportTitle = document.getElementById("github-import-title");
   const githubImportUrlInput = document.getElementById("github-import-url");
   const githubImportFileSelect = document.getElementById("github-import-file-select");
+  const githubImportSelectionToolbar = document.getElementById("github-import-selection-toolbar");
+  const githubImportSelectedCount = document.getElementById("github-import-selected-count");
+  const githubImportSelectAllBtn = document.getElementById("github-import-select-all");
+  const githubImportTree = document.getElementById("github-import-tree");
   const githubImportError = document.getElementById("github-import-error");
   const githubImportCancelBtn = document.getElementById("github-import-cancel");
   const githubImportSubmitBtn = document.getElementById("github-import-submit");
@@ -825,6 +829,10 @@ This is a fully client-side application. Your content never leaves your browser 
     return /\.(md|markdown)$/i.test(path || "");
   }
   const MAX_GITHUB_FILES_SHOWN = 30;
+  const GITHUB_IMPORT_MIN_REQUEST_INTERVAL_MS = 800;
+  let lastGitHubImportRequestAt = 0;
+  const selectedGitHubImportPaths = new Set();
+  let availableGitHubImportPaths = [];
 
   function getFileName(path) {
     return (path || "").split("/").pop() || "document.md";
@@ -839,6 +847,12 @@ This is a fully client-side application. Your content never leaves your browser 
   }
 
   async function fetchGitHubJson(url) {
+    const now = Date.now();
+    const waitTime = GITHUB_IMPORT_MIN_REQUEST_INTERVAL_MS - (now - lastGitHubImportRequestAt);
+    if (waitTime > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+    lastGitHubImportRequestAt = Date.now();
     const response = await fetch(url, {
       headers: {
         Accept: "application/vnd.github+json"
@@ -924,6 +938,109 @@ This is a fully client-side application. Your content never leaves your browser 
       .sort((a, b) => a.localeCompare(b));
   }
 
+  function buildMarkdownFileTree(paths) {
+    const root = { folders: {}, files: [] };
+    (paths || []).forEach((path) => {
+      const segments = (path || "").split("/").filter(Boolean);
+      if (!segments.length) return;
+      const fileName = segments.pop();
+      let node = root;
+      segments.forEach((segment) => {
+        if (!node.folders[segment]) {
+          node.folders[segment] = { folders: {}, files: [] };
+        }
+        node = node.folders[segment];
+      });
+      node.files.push({ name: fileName, path });
+    });
+    return root;
+  }
+
+  function updateGitHubImportSelectedCount() {
+    if (!githubImportSelectedCount) return;
+    const count = selectedGitHubImportPaths.size;
+    githubImportSelectedCount.textContent = `${count} selected`;
+  }
+
+  function updateGitHubSelectAllButtonLabel() {
+    if (!githubImportSelectAllBtn) return;
+    const total = availableGitHubImportPaths.length;
+    const allSelected = total > 0 && selectedGitHubImportPaths.size === total;
+    githubImportSelectAllBtn.textContent = allSelected ? "Clear All" : "Select All";
+  }
+
+  function syncGitHubSelectionToButtons() {
+    if (!githubImportTree) return;
+    Array.from(githubImportTree.querySelectorAll(".github-tree-file-btn")).forEach((btn) => {
+      const isSelected = selectedGitHubImportPaths.has(btn.dataset.path);
+      btn.classList.toggle("is-selected", isSelected);
+      btn.setAttribute("aria-pressed", isSelected ? "true" : "false");
+    });
+  }
+
+  function setGitHubSelectedPaths(paths) {
+    selectedGitHubImportPaths.clear();
+    (paths || []).forEach((path) => selectedGitHubImportPaths.add(path));
+    updateGitHubImportSelectedCount();
+    syncGitHubSelectionToButtons();
+    updateGitHubSelectAllButtonLabel();
+  }
+
+  function toggleGitHubSelectedPath(path) {
+    if (!path) return;
+    if (selectedGitHubImportPaths.has(path)) {
+      selectedGitHubImportPaths.delete(path);
+    } else {
+      selectedGitHubImportPaths.add(path);
+    }
+    updateGitHubImportSelectedCount();
+    syncGitHubSelectionToButtons();
+    updateGitHubSelectAllButtonLabel();
+  }
+
+  function renderGitHubImportTree(paths) {
+    if (!githubImportTree || !githubImportFileSelect) return;
+    githubImportTree.innerHTML = "";
+    const tree = buildMarkdownFileTree(paths);
+
+    const createTreeBranch = function(node, parentPath) {
+      const list = document.createElement("ul");
+      const folderNames = Object.keys(node.folders).sort((a, b) => a.localeCompare(b));
+      folderNames.forEach((folderName) => {
+        const folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+        const item = document.createElement("li");
+        const folderLabel = document.createElement("span");
+        folderLabel.className = "github-tree-folder-label";
+        folderLabel.textContent = `📁 ${folderName}`;
+        item.appendChild(folderLabel);
+        item.appendChild(createTreeBranch(node.folders[folderName], folderPath));
+        list.appendChild(item);
+      });
+
+      node.files
+        .sort((a, b) => a.path.localeCompare(b.path))
+        .forEach((file) => {
+          const fileItem = document.createElement("li");
+          const fileButton = document.createElement("button");
+          fileButton.type = "button";
+          fileButton.className = "github-tree-file-btn";
+          fileButton.dataset.path = file.path;
+          fileButton.setAttribute("aria-pressed", "false");
+          fileButton.textContent = `📄 ${file.name}`;
+          fileButton.addEventListener("click", function() {
+            toggleGitHubSelectedPath(file.path);
+          });
+          fileItem.appendChild(fileButton);
+          list.appendChild(fileItem);
+        });
+
+      return list;
+    };
+
+    githubImportTree.appendChild(createTreeBranch(tree, ""));
+    syncGitHubSelectionToButtons();
+  }
+
   function setGitHubImportLoading(isLoading) {
     if (!githubImportSubmitBtn) return;
     if (isLoading) {
@@ -959,6 +1076,15 @@ This is a fully client-side application. Your content never leaves your browser 
     githubImportFileSelect.innerHTML = "";
     githubImportFileSelect.style.display = "none";
     githubImportFileSelect.disabled = false;
+    if (githubImportSelectionToolbar) {
+      githubImportSelectionToolbar.style.display = "none";
+    }
+    availableGitHubImportPaths = [];
+    setGitHubSelectedPaths([]);
+    if (githubImportTree) {
+      githubImportTree.innerHTML = "";
+      githubImportTree.style.display = "none";
+    }
     githubImportSubmitBtn.dataset.step = "url";
     delete githubImportSubmitBtn.dataset.owner;
     delete githubImportSubmitBtn.dataset.repo;
@@ -987,22 +1113,27 @@ This is a fully client-side application. Your content never leaves your browser 
       if (githubImportCancelBtn) {
         githubImportCancelBtn.disabled = disabled;
       }
+      if (githubImportSelectAllBtn) {
+        githubImportSelectAllBtn.disabled = disabled;
+      }
     };
     const step = githubImportSubmitBtn.dataset.step || "url";
     if (step === "select") {
-      const selectedPath = githubImportFileSelect.value;
+      const selectedPaths = Array.from(selectedGitHubImportPaths);
       const owner = githubImportSubmitBtn.dataset.owner;
       const repo = githubImportSubmitBtn.dataset.repo;
       const ref = githubImportSubmitBtn.dataset.ref;
-      if (!owner || !repo || !ref || !selectedPath) {
-        setGitHubImportMessage("Please select a file to import.");
+      if (!owner || !repo || !ref || !selectedPaths.length) {
+        setGitHubImportMessage("Please select at least one file to import.");
         return;
       }
       setGitHubImportLoading(true);
       setGitHubImportDialogDisabled(true);
       try {
-        const markdown = await fetchTextContent(buildRawGitHubUrl(owner, repo, ref, selectedPath));
-        newTab(markdown, getFileName(selectedPath).replace(/\.(md|markdown)$/i, ""));
+        for (const selectedPath of selectedPaths) {
+          const markdown = await fetchTextContent(buildRawGitHubUrl(owner, repo, ref, selectedPath));
+          newTab(markdown, getFileName(selectedPath).replace(/\.(md|markdown)$/i, ""));
+        }
         closeGitHubImportModal();
       } catch (error) {
         console.error("GitHub import failed:", error);
@@ -1057,22 +1188,31 @@ This is a fully client-side application. Your content never leaves your browser 
         return;
       }
 
-      githubImportUrlInput.style.display = "none";
-      githubImportFileSelect.style.display = "block";
       githubImportFileSelect.innerHTML = "";
+      githubImportUrlInput.style.display = "none";
+      githubImportFileSelect.style.display = "none";
+      if (githubImportSelectionToolbar) {
+        githubImportSelectionToolbar.style.display = "flex";
+      }
+      if (githubImportTree) {
+        githubImportTree.style.display = "block";
+      }
       shownFiles.forEach((filePath) => {
         const option = document.createElement("option");
         option.value = filePath;
         option.textContent = filePath;
         githubImportFileSelect.appendChild(option);
       });
+      availableGitHubImportPaths = shownFiles.slice();
+      setGitHubSelectedPaths(shownFiles[0] ? [shownFiles[0]] : []);
+      renderGitHubImportTree(shownFiles);
       if (files.length > MAX_GITHUB_FILES_SHOWN) {
         setGitHubImportMessage(`Showing first ${MAX_GITHUB_FILES_SHOWN} of ${files.length} Markdown files.`, { isError: false });
       } else {
         setGitHubImportMessage("");
       }
       if (githubImportTitle) {
-        githubImportTitle.textContent = "Select a Markdown file to import";
+        githubImportTitle.textContent = "Select Markdown file(s) to import";
       }
       githubImportSubmitBtn.dataset.step = "select";
       githubImportSubmitBtn.dataset.owner = parsed.owner;
@@ -1552,6 +1692,13 @@ This is a fully client-side application. Your content never leaves your browser 
   }
   if (githubImportFileSelect) {
     githubImportFileSelect.addEventListener("keydown", handleGitHubImportInputKeydown);
+  }
+  if (githubImportSelectAllBtn) {
+    githubImportSelectAllBtn.addEventListener("click", function() {
+      const allPaths = availableGitHubImportPaths.slice();
+      const shouldSelectAll = selectedGitHubImportPaths.size !== allPaths.length;
+      setGitHubSelectedPaths(shouldSelectAll ? allPaths : []);
+    });
   }
 
   fileInput.addEventListener("change", function (e) {
