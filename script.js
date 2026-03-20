@@ -65,6 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const githubImportTitle = document.getElementById("github-import-title");
   const githubImportUrlInput = document.getElementById("github-import-url");
   const githubImportFileSelect = document.getElementById("github-import-file-select");
+  const githubImportTree = document.getElementById("github-import-tree");
   const githubImportError = document.getElementById("github-import-error");
   const githubImportCancelBtn = document.getElementById("github-import-cancel");
   const githubImportSubmitBtn = document.getElementById("github-import-submit");
@@ -825,6 +826,8 @@ This is a fully client-side application. Your content never leaves your browser 
     return /\.(md|markdown)$/i.test(path || "");
   }
   const MAX_GITHUB_FILES_SHOWN = 30;
+  const GITHUB_IMPORT_MIN_REQUEST_INTERVAL_MS = 800;
+  let lastGitHubImportRequestAt = 0;
 
   function getFileName(path) {
     return (path || "").split("/").pop() || "document.md";
@@ -839,6 +842,12 @@ This is a fully client-side application. Your content never leaves your browser 
   }
 
   async function fetchGitHubJson(url) {
+    const now = Date.now();
+    const waitTime = GITHUB_IMPORT_MIN_REQUEST_INTERVAL_MS - (now - lastGitHubImportRequestAt);
+    if (waitTime > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+    lastGitHubImportRequestAt = Date.now();
     const response = await fetch(url, {
       headers: {
         Accept: "application/vnd.github+json"
@@ -924,6 +933,80 @@ This is a fully client-side application. Your content never leaves your browser 
       .sort((a, b) => a.localeCompare(b));
   }
 
+  function buildMarkdownFileTree(paths) {
+    const root = { folders: {}, files: [] };
+    (paths || []).forEach((path) => {
+      const segments = (path || "").split("/").filter(Boolean);
+      if (!segments.length) return;
+      const fileName = segments.pop();
+      let node = root;
+      segments.forEach((segment) => {
+        if (!node.folders[segment]) {
+          node.folders[segment] = { folders: {}, files: [] };
+        }
+        node = node.folders[segment];
+      });
+      node.files.push({ name: fileName, path });
+    });
+    return root;
+  }
+
+  function renderGitHubImportTree(paths) {
+    if (!githubImportTree || !githubImportFileSelect) return;
+    githubImportTree.innerHTML = "";
+    const tree = buildMarkdownFileTree(paths);
+    const selectPath = function(path) {
+      githubImportFileSelect.value = path;
+      if (!githubImportFileSelect.value && githubImportFileSelect.options.length > 0) {
+        githubImportFileSelect.value = githubImportFileSelect.options[0].value;
+      }
+      Array.from(githubImportTree.querySelectorAll(".github-tree-file-btn.is-selected")).forEach((btn) => {
+        btn.classList.remove("is-selected");
+      });
+      Array.from(githubImportTree.querySelectorAll(".github-tree-file-btn")).forEach((btn) => {
+        if (btn.dataset.path === githubImportFileSelect.value) {
+          btn.classList.add("is-selected");
+        }
+      });
+    };
+
+    const createBranch = function(node, parentPath) {
+      const list = document.createElement("ul");
+      const folderNames = Object.keys(node.folders).sort((a, b) => a.localeCompare(b));
+      folderNames.forEach((folderName) => {
+        const folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+        const item = document.createElement("li");
+        const folderLabel = document.createElement("span");
+        folderLabel.className = "github-tree-folder-label";
+        folderLabel.textContent = `📁 ${folderName}`;
+        item.appendChild(folderLabel);
+        item.appendChild(createBranch(node.folders[folderName], folderPath));
+        list.appendChild(item);
+      });
+
+      node.files
+        .sort((a, b) => a.path.localeCompare(b.path))
+        .forEach((file) => {
+          const fileItem = document.createElement("li");
+          const fileButton = document.createElement("button");
+          fileButton.type = "button";
+          fileButton.className = "github-tree-file-btn";
+          fileButton.dataset.path = file.path;
+          fileButton.textContent = `📄 ${file.name}`;
+          fileButton.addEventListener("click", function() {
+            selectPath(file.path);
+          });
+          fileItem.appendChild(fileButton);
+          list.appendChild(fileItem);
+        });
+
+      return list;
+    };
+
+    githubImportTree.appendChild(createBranch(tree, ""));
+    selectPath(githubImportFileSelect.value || "");
+  }
+
   function setGitHubImportLoading(isLoading) {
     if (!githubImportSubmitBtn) return;
     if (isLoading) {
@@ -959,6 +1042,10 @@ This is a fully client-side application. Your content never leaves your browser 
     githubImportFileSelect.innerHTML = "";
     githubImportFileSelect.style.display = "none";
     githubImportFileSelect.disabled = false;
+    if (githubImportTree) {
+      githubImportTree.innerHTML = "";
+      githubImportTree.style.display = "none";
+    }
     githubImportSubmitBtn.dataset.step = "url";
     delete githubImportSubmitBtn.dataset.owner;
     delete githubImportSubmitBtn.dataset.repo;
@@ -1058,14 +1145,18 @@ This is a fully client-side application. Your content never leaves your browser 
       }
 
       githubImportUrlInput.style.display = "none";
-      githubImportFileSelect.style.display = "block";
-      githubImportFileSelect.innerHTML = "";
+      githubImportFileSelect.style.display = "none";
+      if (githubImportTree) {
+        githubImportTree.style.display = "block";
+      }
+    githubImportFileSelect.innerHTML = "";
       shownFiles.forEach((filePath) => {
         const option = document.createElement("option");
         option.value = filePath;
         option.textContent = filePath;
         githubImportFileSelect.appendChild(option);
       });
+      renderGitHubImportTree(shownFiles);
       if (files.length > MAX_GITHUB_FILES_SHOWN) {
         setGitHubImportMessage(`Showing first ${MAX_GITHUB_FILES_SHOWN} of ${files.length} Markdown files.`, { isError: false });
       } else {

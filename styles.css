@@ -1675,6 +1675,63 @@ a:focus {
   font-size: 15px;
 }
 
+#github-import-file-select {
+  min-height: 180px;
+}
+
+.github-import-tree {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--bg-color);
+}
+
+.github-import-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.github-import-tree > ul {
+  padding-left: 4px;
+}
+
+.github-import-tree li {
+  margin: 2px 0;
+}
+
+.github-tree-folder-label {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--text-secondary, #57606a);
+  margin-bottom: 2px;
+}
+
+.github-tree-file-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  text-align: left;
+  width: 100%;
+  font-size: 13px;
+}
+
+.github-tree-file-btn:hover,
+.github-tree-file-btn:focus-visible {
+  background: var(--button-hover);
+  outline: none;
+}
+
+.github-tree-file-btn.is-selected {
+  background: var(--button-hover);
+  color: var(--accent-color);
+}
+
 #github-import-modal .reset-modal-actions {
   gap: 12px;
 }

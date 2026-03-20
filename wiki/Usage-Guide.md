@@ -75,8 +75,8 @@ Drag a `.md` file from your file explorer directly onto the **editor pane**. The
    - Repository URL (for example: `https://github.com/owner/repo`)
    - Folder URL (for example: `https://github.com/owner/repo/tree/main/docs`)
    - Markdown file URL (for example: `https://github.com/owner/repo/blob/main/README.md`)
-3. If multiple Markdown files are found, choose the file number from the prompt list.
-4. The selected file is opened in a new tab.
+3. If multiple Markdown files are found, use the in-app file browser to pick a `.md` file.
+4. Click **Import Selected** to open the chosen file in a new tab.
 
 > **Tip**: Only `.md` and `.markdown` files are accepted.
 
