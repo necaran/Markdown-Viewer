@@ -97,3 +97,31 @@ if (NL_OS != "Darwin") {
   // TODO: Fix https://github.com/neutralinojs/neutralinojs/issues/615
   setTray();
 }
+
+// Open file passed as command-line argument (e.g. when double-clicking a .md file)
+(async function loadInitialFile() {
+  const args = Array.isArray(NL_ARGS) ? NL_ARGS : (() => { try { return JSON.parse(NL_ARGS); } catch(e) { return []; } })();
+  const filePath = args.find(a => typeof a === 'string' && /\.(md|markdown)$/i.test(a));
+  if (!filePath) return;
+
+  try {
+    const content = await Neutralino.filesystem.readFile(filePath);
+
+    function applyContent() {
+      const editor = document.getElementById('markdown-editor');
+      const dropzone = document.getElementById('dropzone');
+      if (!editor) return;
+      editor.value = content;
+      editor.dispatchEvent(new Event('input'));
+      if (dropzone) dropzone.style.display = 'none';
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyContent);
+    } else {
+      setTimeout(applyContent, 0);
+    }
+  } catch (e) {
+    console.warn('Could not open initial file:', e);
+  }
+})();
