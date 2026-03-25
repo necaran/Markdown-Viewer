@@ -160,8 +160,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!firstParagraph) return;
 
       const firstParagraphHtml = firstParagraph.innerHTML.trim();
-      const markerMatch = firstParagraphHtml
-        .match(GITHUB_ALERT_MARKER_REGEX);
+      const markerMatch = firstParagraphHtml.match(GITHUB_ALERT_MARKER_REGEX);
       if (!markerMatch) return;
 
       const alertType = markerMatch[1].toLowerCase();
