@@ -143,6 +143,7 @@ document.addEventListener("DOMContentLoaded", function () {
     warning: "Warning",
     caution: "Caution",
   };
+  const GITHUB_ALERT_MARKER_REGEX = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s+|$)/i;
 
   function enhanceGitHubAlerts(container) {
     if (!container) return;
@@ -158,9 +159,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (!firstParagraph) return;
 
-      const markerMatch = firstParagraph.textContent
-        .trim()
-        .match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i);
+      const firstParagraphHtml = firstParagraph.innerHTML.trim();
+      const markerMatch = firstParagraphHtml
+        .match(GITHUB_ALERT_MARKER_REGEX);
       if (!markerMatch) return;
 
       const alertType = markerMatch[1].toLowerCase();
@@ -170,8 +171,16 @@ document.addEventListener("DOMContentLoaded", function () {
       title.className = "markdown-alert-title";
       title.textContent = GITHUB_ALERT_TYPES[alertType] || markerMatch[1];
 
-      firstParagraph.remove();
       blockquote.insertBefore(title, blockquote.firstChild);
+
+      const remainingHtml = firstParagraphHtml
+        .replace(GITHUB_ALERT_MARKER_REGEX, "")
+        .trim();
+      if (remainingHtml) {
+        firstParagraph.innerHTML = remainingHtml;
+      } else {
+        firstParagraph.remove();
+      }
     });
   }
 
