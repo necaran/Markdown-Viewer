@@ -139,23 +139,23 @@ document.addEventListener("DOMContentLoaded", function () {
   const GITHUB_ALERT_META = {
     note: {
       label: "Note",
-      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8.93-3.41-1.81 4.55a.25.25 0 0 0 .23.34h1.3a.25.25 0 0 1 .25.25v1.03a.25.25 0 0 1-.25.25H7.35a.25.25 0 0 0-.23.34l1.81 4.55a.75.75 0 0 0 1.4 0l1.81-4.55a.25.25 0 0 0-.23-.34h-1.3a.25.25 0 0 1-.25-.25V9.73a.25.25 0 0 1 .25-.25h1.3a.25.25 0 0 0 .23-.34L10.33 4.6a.75.75 0 0 0-1.4 0Z"/></svg>',
+      path: "M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16Zm-.75-10.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5ZM8 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z",
     },
     tip: {
       label: "Tip",
-      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a4.75 4.75 0 0 0-2.543 8.762.75.75 0 0 1 .343.637v.351c0 .564.302 1.084.79 1.364l.66.378V13a1 1 0 0 0 1 1h.5a1 1 0 0 0 1-1v-.508l.66-.378a1.572 1.572 0 0 0 .79-1.364V10.4a.75.75 0 0 1 .343-.638A4.75 4.75 0 0 0 8 1Zm-1.25 12h2.5v-.138l.915-.522a.572.572 0 0 0 .285-.495V11h-5v.845c0 .203.109.39.285.495l.915.522V13Z"/></svg>',
+      path: "M8 1a4.75 4.75 0 0 0-2.543 8.762.75.75 0 0 1 .343.637v.351c0 .564.302 1.084.79 1.364l.66.378V13a1 1 0 0 0 1 1h.5a1 1 0 0 0 1-1v-.508l.66-.378a1.572 1.572 0 0 0 .79-1.364V10.4a.75.75 0 0 1 .343-.638A4.75 4.75 0 0 0 8 1Zm-1.25 12h2.5v-.138l.915-.522a.572.572 0 0 0 .285-.495V11h-5v.845c0 .203.109.39.285.495l.915.522V13Z",
     },
     important: {
       label: "Important",
-      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16ZM7.25 4.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5Zm.75 7.25a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>',
+      path: "M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16ZM7.25 4.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5Zm.75 7.25a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z",
     },
     warning: {
       label: "Warning",
-      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.457 1.047a1.75 1.75 0 0 1 3.086 0l6.082 11.81A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.143l6.082-11.81ZM8 4.75a.75.75 0 0 0-.75.75v3.25a.75.75 0 0 0 1.5 0V5.5A.75.75 0 0 0 8 4.75Zm0 7.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>',
+      path: "M6.457 1.047a1.75 1.75 0 0 1 3.086 0l6.082 11.81A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.143l6.082-11.81ZM8 4.75a.75.75 0 0 0-.75.75v3.25a.75.75 0 0 0 1.5 0V5.5A.75.75 0 0 0 8 4.75Zm0 7.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
     },
     caution: {
       label: "Caution",
-      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16Zm2.47-10.53a.75.75 0 0 1 0 1.06L9.06 8l1.41 1.47a.75.75 0 1 1-1.08 1.04L8 9.08l-1.39 1.43a.75.75 0 0 1-1.08-1.04L6.94 8 5.53 6.53a.75.75 0 0 1 1.08-1.04L8 6.92l1.39-1.43a.75.75 0 0 1 1.08 0Z"/></svg>',
+      path: "M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16Zm2.47-10.53a.75.75 0 0 1 0 1.06L9.06 8l1.41 1.47a.75.75 0 1 1-1.08 1.04L8 9.08l-1.39 1.43a.75.75 0 0 1-1.08-1.04L6.94 8 5.53 6.53a.75.75 0 0 1 1.08-1.04L8 6.92l1.39-1.43a.75.75 0 0 1 1.08 0Z",
     },
   };
   const GITHUB_ALERT_MARKER_REGEX = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s+|$)/i;
@@ -183,8 +183,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const title = document.createElement("p");
       title.className = "markdown-alert-title";
-      const alertMeta = GITHUB_ALERT_META[alertType] || { label: markerMatch[1], icon: "" };
-      title.innerHTML = `<span class="markdown-alert-icon" aria-hidden="true">${alertMeta.icon}</span><span>${alertMeta.label}</span>`;
+      const alertMeta = GITHUB_ALERT_META[alertType] || { label: markerMatch[1], path: "" };
+      const icon = document.createElement("span");
+      icon.className = "markdown-alert-icon";
+      icon.setAttribute("aria-hidden", "true");
+
+      if (alertMeta.path) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 16 16");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", alertMeta.path);
+        svg.appendChild(path);
+        icon.appendChild(svg);
+      }
+
+      const label = document.createElement("span");
+      label.textContent = alertMeta.label;
+      title.appendChild(icon);
+      title.appendChild(label);
 
       blockquote.insertBefore(title, blockquote.firstChild);
 
