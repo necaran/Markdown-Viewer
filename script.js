@@ -188,14 +188,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const title = document.createElement("p");
       title.className = "markdown-alert-title";
-      const alertMeta = GITHUB_ALERT_META[alertType] || { label: markerMatch[1], path: "", viewBox: "0 0 16 16" };
+      const alertMeta = GITHUB_ALERT_META[alertType] || { label: markerMatch[1], path: "" };
       const icon = document.createElement("span");
       icon.className = "markdown-alert-icon";
       icon.setAttribute("aria-hidden", "true");
 
       if (alertMeta.path) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", alertMeta.viewBox || "0 0 16 16");
+        svg.setAttribute("viewBox", alertMeta.viewBox || "0 0 512 512");
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", alertMeta.path);
         svg.appendChild(path);
