@@ -136,12 +136,27 @@ document.addEventListener("DOMContentLoaded", function () {
     renderer: renderer,
   });
 
-  const GITHUB_ALERT_TYPES = {
-    note: "Note",
-    tip: "Tip",
-    important: "Important",
-    warning: "Warning",
-    caution: "Caution",
+  const GITHUB_ALERT_META = {
+    note: {
+      label: "Note",
+      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8.93-3.41-1.81 4.55a.25.25 0 0 0 .23.34h1.3a.25.25 0 0 1 .25.25v1.03a.25.25 0 0 1-.25.25H7.35a.25.25 0 0 0-.23.34l1.81 4.55a.75.75 0 0 0 1.4 0l1.81-4.55a.25.25 0 0 0-.23-.34h-1.3a.25.25 0 0 1-.25-.25V9.73a.25.25 0 0 1 .25-.25h1.3a.25.25 0 0 0 .23-.34L10.33 4.6a.75.75 0 0 0-1.4 0Z"/></svg>',
+    },
+    tip: {
+      label: "Tip",
+      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a4.75 4.75 0 0 0-2.543 8.762.75.75 0 0 1 .343.637v.351c0 .564.302 1.084.79 1.364l.66.378V13a1 1 0 0 0 1 1h.5a1 1 0 0 0 1-1v-.508l.66-.378a1.572 1.572 0 0 0 .79-1.364V10.4a.75.75 0 0 1 .343-.638A4.75 4.75 0 0 0 8 1Zm-1.25 12h2.5v-.138l.915-.522a.572.572 0 0 0 .285-.495V11h-5v.845c0 .203.109.39.285.495l.915.522V13Z"/></svg>',
+    },
+    important: {
+      label: "Important",
+      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16ZM7.25 4.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5Zm.75 7.25a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>',
+    },
+    warning: {
+      label: "Warning",
+      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.457 1.047a1.75 1.75 0 0 1 3.086 0l6.082 11.81A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.143l6.082-11.81ZM8 4.75a.75.75 0 0 0-.75.75v3.25a.75.75 0 0 0 1.5 0V5.5A.75.75 0 0 0 8 4.75Zm0 7.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>',
+    },
+    caution: {
+      label: "Caution",
+      icon: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16Zm2.47-10.53a.75.75 0 0 1 0 1.06L9.06 8l1.41 1.47a.75.75 0 1 1-1.08 1.04L8 9.08l-1.39 1.43a.75.75 0 0 1-1.08-1.04L6.94 8 5.53 6.53a.75.75 0 0 1 1.08-1.04L8 6.92l1.39-1.43a.75.75 0 0 1 1.08 0Z"/></svg>',
+    },
   };
   const GITHUB_ALERT_MARKER_REGEX = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s+|$)/i;
 
@@ -168,7 +183,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const title = document.createElement("p");
       title.className = "markdown-alert-title";
-      title.textContent = GITHUB_ALERT_TYPES[alertType] || markerMatch[1];
+      const alertMeta = GITHUB_ALERT_META[alertType] || { label: markerMatch[1], icon: "" };
+      title.innerHTML = `<span class="markdown-alert-icon" aria-hidden="true">${alertMeta.icon}</span><span>${alertMeta.label}</span>`;
 
       blockquote.insertBefore(title, blockquote.firstChild);
 
@@ -1828,6 +1844,7 @@ This is a fully client-side application. Your content never leaves your browser 
           padding: 0.5rem 1rem;
           margin-bottom: 16px;
           border-left: 0.25em solid;
+          border-radius: 0.375rem;
       }
       .markdown-alert > :last-child {
           margin-bottom: 0;
@@ -1835,13 +1852,27 @@ This is a fully client-side application. Your content never leaves your browser 
       .markdown-alert-title {
           margin: 0 0 8px;
           font-weight: 600;
-          line-height: 1;
+          line-height: 1.25;
+          display: flex;
+          align-items: center;
+          gap: 8px;
       }
-      .markdown-alert-note { border-left-color: #1f6feb; background-color: ${isDarkTheme ? "rgba(31, 111, 235, 0.15)" : "#ddf4ff"}; }
-      .markdown-alert-tip { border-left-color: #238636; background-color: ${isDarkTheme ? "rgba(35, 134, 54, 0.15)" : "#dafbe1"}; }
-      .markdown-alert-important { border-left-color: #8957e5; background-color: ${isDarkTheme ? "rgba(137, 87, 229, 0.15)" : "#fbefff"}; }
-      .markdown-alert-warning { border-left-color: #9a6700; background-color: ${isDarkTheme ? "rgba(210, 153, 34, 0.18)" : "#fff8c5"}; }
-      .markdown-alert-caution { border-left-color: #cf222e; background-color: ${isDarkTheme ? "rgba(248, 81, 73, 0.18)" : "#ffebe9"}; }
+      .markdown-alert-icon {
+          display: inline-flex;
+          width: 16px;
+          height: 16px;
+      }
+      .markdown-alert-icon svg {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+      }
+      .markdown-alert-note { color: ${isDarkTheme ? "#4493f8" : "#0969da"}; border-left-color: ${isDarkTheme ? "#4493f8" : "#0969da"}; background-color: ${isDarkTheme ? "rgba(31, 111, 235, 0.15)" : "#ddf4ff"}; }
+      .markdown-alert-tip { color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; border-left-color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; background-color: ${isDarkTheme ? "rgba(35, 134, 54, 0.15)" : "#dafbe1"}; }
+      .markdown-alert-important { color: ${isDarkTheme ? "#ab7df8" : "#8250df"}; border-left-color: ${isDarkTheme ? "#ab7df8" : "#8250df"}; background-color: ${isDarkTheme ? "rgba(137, 87, 229, 0.15)" : "#fbefff"}; }
+      .markdown-alert-warning { color: ${isDarkTheme ? "#d29922" : "#9a6700"}; border-left-color: ${isDarkTheme ? "#d29922" : "#9a6700"}; background-color: ${isDarkTheme ? "rgba(210, 153, 34, 0.18)" : "#fff8c5"}; }
+      .markdown-alert-caution { color: ${isDarkTheme ? "#f85149" : "#cf222e"}; border-left-color: ${isDarkTheme ? "#f85149" : "#cf222e"}; background-color: ${isDarkTheme ? "rgba(248, 81, 73, 0.18)" : "#ffebe9"}; }
+      .markdown-alert > *:not(.markdown-alert-title) { color: ${isDarkTheme ? "#c9d1d9" : "#24292e"}; }
 
       @media (max-width: 767px) {
           .markdown-body {
