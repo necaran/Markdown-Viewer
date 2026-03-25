@@ -136,6 +136,45 @@ document.addEventListener("DOMContentLoaded", function () {
     renderer: renderer,
   });
 
+  const GITHUB_ALERT_TYPES = {
+    note: "Note",
+    tip: "Tip",
+    important: "Important",
+    warning: "Warning",
+    caution: "Caution",
+  };
+
+  function enhanceGitHubAlerts(container) {
+    if (!container) return;
+
+    const blockquotes = container.querySelectorAll("blockquote");
+    blockquotes.forEach((blockquote) => {
+      let firstParagraph = null;
+      for (const child of blockquote.children) {
+        if (child.tagName === "P") {
+          firstParagraph = child;
+          break;
+        }
+      }
+      if (!firstParagraph) return;
+
+      const markerMatch = firstParagraph.textContent
+        .trim()
+        .match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i);
+      if (!markerMatch) return;
+
+      const alertType = markerMatch[1].toLowerCase();
+      blockquote.classList.add("markdown-alert", `markdown-alert-${alertType}`);
+
+      const title = document.createElement("p");
+      title.className = "markdown-alert-title";
+      title.textContent = GITHUB_ALERT_TYPES[alertType] || markerMatch[1];
+
+      firstParagraph.remove();
+      blockquote.insertBefore(title, blockquote.firstChild);
+    });
+  }
+
   const sampleMarkdown = `# Welcome to Markdown Viewer
 
 ## ✨ Key Features
@@ -776,6 +815,7 @@ This is a fully client-side application. Your content never leaves your browser 
         ADD_ATTR: ['id', 'class', 'style']
       });
       markdownPreview.innerHTML = sanitizedHtml;
+      enhanceGitHubAlerts(markdownPreview);
 
       processEmojis(markdownPreview);
       
@@ -1729,6 +1769,10 @@ This is a fully client-side application. Your content never leaves your browser 
         ADD_TAGS: ['mjx-container'], 
         ADD_ATTR: ['id', 'class', 'style']
       });
+      const tempContainer = document.createElement("div");
+      tempContainer.innerHTML = sanitizedHtml;
+      enhanceGitHubAlerts(tempContainer);
+      const enhancedHtml = tempContainer.innerHTML;
       const isDarkTheme =
         document.documentElement.getAttribute("data-theme") === "dark";
       const cssTheme = isDarkTheme
@@ -1772,6 +1816,25 @@ This is a fully client-side application. Your content never leaves your browser 
       .hljs-addition { color: ${isDarkTheme ? "#aff5b4" : "#22863a"}; background-color: ${isDarkTheme ? "#033a16" : "#f0fff4"}; }
       .hljs-deletion { color: ${isDarkTheme ? "#ffdcd7" : "#b31d28"}; background-color: ${isDarkTheme ? "#67060c" : "#ffeef0"}; }
 
+      .markdown-alert {
+          padding: 0.5rem 1rem;
+          margin-bottom: 16px;
+          border-left: 0.25em solid;
+      }
+      .markdown-alert > :last-child {
+          margin-bottom: 0;
+      }
+      .markdown-alert-title {
+          margin: 0 0 8px;
+          font-weight: 600;
+          line-height: 1;
+      }
+      .markdown-alert-note { border-left-color: #1f6feb; background-color: ${isDarkTheme ? "rgba(31, 111, 235, 0.15)" : "#ddf4ff"}; }
+      .markdown-alert-tip { border-left-color: #238636; background-color: ${isDarkTheme ? "rgba(35, 134, 54, 0.15)" : "#dafbe1"}; }
+      .markdown-alert-important { border-left-color: #8957e5; background-color: ${isDarkTheme ? "rgba(137, 87, 229, 0.15)" : "#fbefff"}; }
+      .markdown-alert-warning { border-left-color: #9a6700; background-color: ${isDarkTheme ? "rgba(210, 153, 34, 0.18)" : "#fff8c5"}; }
+      .markdown-alert-caution { border-left-color: #cf222e; background-color: ${isDarkTheme ? "rgba(248, 81, 73, 0.18)" : "#ffebe9"}; }
+
       @media (max-width: 767px) {
           .markdown-body {
               padding: 15px;
@@ -1781,7 +1844,7 @@ This is a fully client-side application. Your content never leaves your browser 
 </head>
 <body>
   <article class="markdown-body">
-      ${sanitizedHtml}
+      ${enhancedHtml}
   </article>
 </body>
 </html>`;
@@ -2294,6 +2357,7 @@ This is a fully client-side application. Your content never leaves your browser 
       const tempElement = document.createElement("div");
       tempElement.className = "markdown-body pdf-export";
       tempElement.innerHTML = sanitizedHtml;
+      enhanceGitHubAlerts(tempElement);
       tempElement.style.padding = "20px";
       tempElement.style.width = "210mm";
       tempElement.style.margin = "0 auto";

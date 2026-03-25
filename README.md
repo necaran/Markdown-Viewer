@@ -85,6 +85,7 @@ Inside the **zoom modal** you can:
 - Tables
 - Code blocks with syntax highlighting
 - Blockquotes
+- GitHub-style alerts/admonitions (`[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
 - Horizontal rules
 - Task lists
 - LaTeX equations (inline and block)
