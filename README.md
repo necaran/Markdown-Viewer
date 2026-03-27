@@ -117,6 +117,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin amazing-feature`)
 5. Open a Pull Request
 
+## 🖥️ Built with Markdown Viewer
+
+| Project | Description |
+|---------|-------------|
+| [Markdown Desk](https://github.com/jhrepo/markdown-desk) | A native macOS desktop wrapper built with [Tauri](https://tauri.app/), adding live reload and native file open/save (`Cmd+O`/`Cmd+S`). Tracks upstream via Git submodule. |
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
