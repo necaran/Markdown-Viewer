@@ -73,17 +73,30 @@ document.addEventListener("DOMContentLoaded", function () {
   const githubImportCancelBtn = document.getElementById("github-import-cancel");
   const githubImportSubmitBtn = document.getElementById("github-import-submit");
 
+  // ========================================
+  // GLOBAL STATE (persisted across reloads)
+  // ========================================
+  const GLOBAL_STATE_KEY = 'markdownViewerGlobalState';
+
+  function loadGlobalState() {
+    try { return JSON.parse(localStorage.getItem(GLOBAL_STATE_KEY)) || {}; }
+    catch { return {}; }
+  }
+
+  function saveGlobalState(patch) {
+    localStorage.setItem(GLOBAL_STATE_KEY, JSON.stringify({ ...loadGlobalState(), ...patch }));
+  }
+
   // Check dark mode preference first for proper initialization
   const prefersDarkMode =
     window.matchMedia &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
-  
-  document.documentElement.setAttribute(
-    "data-theme",
-    prefersDarkMode ? "dark" : "light"
-  );
-  
-  themeToggle.innerHTML = prefersDarkMode
+  const savedTheme = loadGlobalState().theme;
+  const initialTheme = savedTheme ?? (prefersDarkMode ? "dark" : "light");
+
+  document.documentElement.setAttribute("data-theme", initialTheme);
+
+  themeToggle.innerHTML = initialTheme === "dark"
     ? '<i class="bi bi-sun"></i>'
     : '<i class="bi bi-moon"></i>';
 
@@ -1508,6 +1521,7 @@ This is a fully client-side application. Your content never leaves your browser 
       toggleSyncButton.classList.remove("sync-disabled");
       toggleSyncButton.classList.remove("border-primary");
     }
+    saveGlobalState({ syncScrollingEnabled });
   }
 
   // View Mode Functions - Story 1.1 & 1.2
@@ -1730,6 +1744,7 @@ This is a fully client-side application. Your content never leaves your browser 
   }
   
   initTabs();
+  if (loadGlobalState().syncScrollingEnabled === false) toggleSyncScrolling();
   updateMobileStats();
 
   // Initialize resizer - Story 1.3
@@ -1792,6 +1807,7 @@ This is a fully client-side application. Your content never leaves your browser 
         ? "light"
         : "dark";
     document.documentElement.setAttribute("data-theme", theme);
+    saveGlobalState({ theme });
 
     if (theme === "dark") {
       themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
