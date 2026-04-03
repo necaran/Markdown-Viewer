@@ -1904,6 +1904,16 @@ This is a fully client-side application. Your content never leaves your browser 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Markdown Export</title>
   <link rel="stylesheet" href="${cssTheme}">
+  <script>
+      window.MathJax = {
+          tex: {
+              inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+              displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+              processEscapes: true
+          }
+      };
+  </script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
   <style>
       body {
           background-color: ${isDarkTheme ? "#0d1117" : "#ffffff"};
@@ -1980,6 +1990,15 @@ This is a fully client-side application. Your content never leaves your browser 
   <article class="markdown-body">
       ${enhancedHtml}
   </article>
+  <script>
+      window.addEventListener('load', function () {
+          if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+              window.MathJax.typesetPromise().catch(function (err) {
+                  console.warn('MathJax typeset failed:', err);
+              });
+          }
+      });
+  </script>
 </body>
 </html>`;
       const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
