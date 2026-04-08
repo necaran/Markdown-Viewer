@@ -1566,8 +1566,8 @@ This is a fully client-side application. Your content never leaves your browser 
     if (mode === 'split') {
       // Restore preserved pane widths when entering split mode
       applyPaneWidths();
-    } else if (previousMode === 'split') {
-      // Reset pane widths when leaving split mode
+    } else {
+      // Reset inline pane widths when not in split mode
       resetPaneWidths();
     }
 
